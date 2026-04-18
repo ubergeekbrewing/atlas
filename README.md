@@ -28,16 +28,19 @@ Open [http://localhost:3000](http://localhost:3000).
    - **Redirect URLs**: add both  
      `http://localhost:3000/auth/callback`  
      `https://YOUR_DOMAIN/auth/callback`
-4. **Authentication → Providers → Google**: turn **Google** on and add your **Client ID** and **Client Secret** from [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (OAuth 2.0 Web client). Authorized redirect URI in Google must include Supabase’s callback, e.g. `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback` (Supabase shows the exact URL in the provider settings).
-5. Copy **Project URL** and **anon public** key from **Project Settings → API**.
-6. Create `.env.local` from `.env.example` and set:
+4. **Google Cloud Console** (same project you use for Supabase’s Google provider):  
+   - **APIs & Services → OAuth consent screen**: complete this first (app name, support email, developer contact). For a personal app choose **External**, publish or stay in **Testing** and add your Google account under **Test users** so only you can sign in until published. The brown “configure the OAuth consent screen” bar on **Credentials** stays until this is done.  
+   - **APIs & Services → Credentials → Create credentials → OAuth client ID** → type **Web application**. Add **Authorized JavaScript origins** (e.g. `http://localhost:3000`, your Vercel URL) and **Authorized redirect URIs** including Supabase’s callback: `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback` (Supabase → Authentication → Providers → Google shows the exact URL). Copy the **Client ID** and **Client secret**.  
+5. **Supabase → Authentication → Providers → Google**: turn **Google** on and paste that Client ID and Client secret.
+6. Copy **Project URL** and **anon public** key from **Project Settings → API**.
+7. Create `.env.local` from `.env.example` and set:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
-7. Add the same variables in **Vercel → Project → Settings → Environment Variables**, then redeploy.
+8. Add the same variables in **Vercel → Project → Settings → Environment Variables**, then redeploy.
 
 Use **You → Backup** to download JSON or restore from a file; imports replace the signed-in user’s rows in Supabase.
 
