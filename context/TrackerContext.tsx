@@ -73,7 +73,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [labAbnormals, setLabAbnormals] = useState<LabAbnormalEntry[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
-  /** True when Supabase is configured but anonymous sign-in failed — use local storage only */
+  /** True when cloud sync is unavailable (anonymous auth failed or initial fetch failed) — local storage only */
   const [remoteDisabled, setRemoteDisabled] = useState(false);
 
   useEffect(() => {
@@ -176,18 +176,29 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           labs = merged.labAbnormals;
         }
         if (cancelled) return;
+        setRemoteDisabled(false);
         setProfileState(p);
         setMeals(m);
         setWorkouts(w);
         setLabAbnormals(labs);
         saveSnapshot({ profile: p, meals: m, workouts: w, labAbnormals: labs });
-      } catch (e) {
+      } catch {
         if (!cancelled) {
-          setSyncError(e instanceof Error ? e.message : "Could not load your data from the cloud.");
-          setProfileState(defaultProfile);
-          setMeals([]);
-          setWorkouts([]);
-          setLabAbnormals([]);
+          setRemoteDisabled(true);
+          queueMicrotask(() => {
+            const snap = loadSnapshot();
+            if (snap) {
+              setProfileState({ ...defaultProfile, ...snap.profile });
+              setMeals(snap.meals);
+              setWorkouts(snap.workouts);
+              setLabAbnormals(snap.labAbnormals ?? []);
+            } else {
+              setProfileState(defaultProfile);
+              setMeals([]);
+              setWorkouts([]);
+              setLabAbnormals([]);
+            }
+          });
         }
       } finally {
         if (!cancelled) {
@@ -212,7 +223,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
 
   const setProfile = useCallback(
     async (p: Profile) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           await upsertProfileRemote(supabase, userId, p);
@@ -224,12 +235,12 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setProfileState(p);
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const addMeal = useCallback(
     async (m: Omit<MealEntry, "id">) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           const inserted = await insertMealRemote(supabase, userId, m);
@@ -241,12 +252,12 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setMeals((prev) => [{ ...m, id: newId() }, ...prev]);
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const removeMeal = useCallback(
     async (id: string) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           await deleteMealRemote(supabase, userId, id);
@@ -258,12 +269,12 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setMeals((prev) => prev.filter((x) => x.id !== id));
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const addWorkout = useCallback(
     async (w: Omit<WorkoutEntry, "id">) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           const inserted = await insertWorkoutRemote(supabase, userId, w);
@@ -275,12 +286,12 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setWorkouts((prev) => [{ ...w, id: newId() }, ...prev]);
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const removeWorkout = useCallback(
     async (id: string) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           await deleteWorkoutRemote(supabase, userId, id);
@@ -292,7 +303,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setWorkouts((prev) => prev.filter((x) => x.id !== id));
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const exportSnapshot = useCallback(() => {
@@ -310,7 +321,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           workouts: Array.isArray(o.workouts) ? (o.workouts as WorkoutEntry[]) : [],
           labAbnormals: Array.isArray(o.labAbnormals) ? (o.labAbnormals as LabAbnormalEntry[]) : [],
         };
-        if (cloud && supabase && userId) {
+        if (cloud && supabase && userId && !remoteDisabled) {
           setSyncError(null);
           const next = await replaceRemoteWithSnapshot(supabase, userId, snap);
           setProfileState(next.profile);
@@ -329,7 +340,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         return false;
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const signOut = useCallback(async () => {
@@ -358,7 +369,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
 
   const addLabAbnormal = useCallback(
     async (r: Omit<LabAbnormalEntry, "id">) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           const inserted = await insertLabAbnormalRemote(supabase, userId, r);
@@ -370,12 +381,12 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setLabAbnormals((prev) => [{ ...r, id: newId() }, ...prev]);
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const removeLabAbnormal = useCallback(
     async (id: string) => {
-      if (cloud && supabase && userId) {
+      if (cloud && supabase && userId && !remoteDisabled) {
         try {
           setSyncError(null);
           await deleteLabAbnormalRemote(supabase, userId, id);
@@ -387,7 +398,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setLabAbnormals((prev) => prev.filter((x) => x.id !== id));
       }
     },
-    [cloud, supabase, userId],
+    [cloud, supabase, userId, remoteDisabled],
   );
 
   const value = useMemo<TrackerContextValue>(
