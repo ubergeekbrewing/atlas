@@ -2,7 +2,7 @@
 
 Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and **JSON backup**.
 
-**With Supabase configured** (see below), the app starts an **anonymous Supabase session** automatically (no email or password). Your meals, workouts, and targets are stored under that account (Row Level Security tied to `auth.uid()`). The app still mirrors a copy to `localStorage` on each device as a cache. If anonymous sign-in is disabled in the project, ATLAS falls back to **local-only** on that device and shows a short error you can dismiss.
+**With Supabase configured** (see below), the app starts an **anonymous Supabase session** automatically (no email or password). Your meals, workouts, and targets are stored under that account (Row Level Security tied to `auth.uid()`). The app still mirrors a copy to `localStorage` on each device as a cache. If anonymous sign-in is disabled in the project, ATLAS falls back to **local-only** on that device with no extra prompt.
 
 **Without Supabase env vars**, the app runs in **offline-only** mode: everything stays in the browser on that device.
 

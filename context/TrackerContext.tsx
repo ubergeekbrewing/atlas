@@ -112,10 +112,6 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (error || !anon.session?.user) {
         setRemoteDisabled(true);
-        setSyncError(
-          error?.message ??
-            "Enable Anonymous sign-ins in Supabase (Authentication → Providers), or remove Supabase env vars to use this device only.",
-        );
         queueMicrotask(() => {
           const snap = loadSnapshot();
           if (snap) {
@@ -345,10 +341,6 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           setRemoteDisabled(true);
           setSession(null);
           setUserId(null);
-          setSyncError(
-            error?.message ??
-              "Could not start a new session. Enable Anonymous sign-ins in Supabase or remove env vars for local-only mode.",
-          );
         } else {
           setRemoteDisabled(false);
           setSyncError(null);
