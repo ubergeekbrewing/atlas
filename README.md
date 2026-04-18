@@ -2,7 +2,7 @@
 
 Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and optional **JSON export** for your own backups.
 
-**Supabase is required.** The app starts an **anonymous Supabase session** automatically (no email or password) when env vars are set. Meals, workouts, labs, and targets live only in your Supabase project (Row Level Security tied to `auth.uid()`). There is no `localStorage` cache of the log.
+**Supabase is required.** You sign in with **Google** (OAuth). Meals, workouts, labs, and targets live only in your Supabase project (Row Level Security tied to `auth.uid()`). There is no `localStorage` cache of the log.
 
 **Without Supabase env vars**, the app shows a short setup screen instead of the tracker.
 
@@ -28,7 +28,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - **Redirect URLs**: add both  
      `http://localhost:3000/auth/callback`  
      `https://YOUR_DOMAIN/auth/callback`
-4. **Authentication → Providers**: enable **Anonymous** (required for automatic cloud sync). Email or other providers are optional.
+4. **Authentication → Providers → Google**: turn **Google** on and add your **Client ID** and **Client Secret** from [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (OAuth 2.0 Web client). Authorized redirect URI in Google must include Supabase’s callback, e.g. `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback` (Supabase shows the exact URL in the provider settings).
 5. Copy **Project URL** and **anon public** key from **Project Settings → API**.
 6. Create `.env.local` from `.env.example` and set:
 

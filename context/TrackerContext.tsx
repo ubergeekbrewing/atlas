@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import GoogleSignIn from "@/components/GoogleSignIn";
 import { createSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   deleteLabAbnormalRemote,
@@ -81,25 +82,10 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       if (existing?.user) {
         setSession(existing);
         setUserId(existing.user.id);
-        setAuthReady(true);
-        return;
+      } else {
+        setSession(null);
+        setUserId(null);
       }
-      const { data: anon, error } = await supabase.auth.signInAnonymously();
-      if (cancelled) return;
-      if (error || !anon.session?.user) {
-        setRemoteDisabled(true);
-        queueMicrotask(() => {
-          setProfileState(defaultProfile);
-          setMeals([]);
-          setWorkouts([]);
-          setLabAbnormals([]);
-          setHydrated(true);
-        });
-        setAuthReady(true);
-        return;
-      }
-      setSession(anon.session);
-      setUserId(anon.session.user.id);
       setAuthReady(true);
     })();
 
@@ -269,25 +255,16 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut();
-      if (cloud) {
-        const { data: anon, error } = await supabase.auth.signInAnonymously();
-        if (error || !anon.session?.user) {
-          setRemoteDisabled(true);
-          setSession(null);
-          setUserId(null);
-        } else {
-          setRemoteDisabled(false);
-          setSyncError(null);
-          setSession(anon.session);
-          setUserId(anon.session.user.id);
-        }
-      }
     }
+    setSession(null);
+    setUserId(null);
+    setRemoteDisabled(false);
+    setSyncError(null);
     setProfileState(defaultProfile);
     setMeals([]);
     setWorkouts([]);
     setLabAbnormals([]);
-  }, [supabase, cloud]);
+  }, [supabase]);
 
   const addLabAbnormal = useCallback(
     async (r: Omit<LabAbnormalEntry, "id">) => {
@@ -365,6 +342,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   );
 
   const showAuthBoot = cloud && !authReady;
+  const showSignIn = Boolean(cloud && authReady && !session && supabase);
   const showCloudSplash = Boolean(cloud && authReady && session && (!hydrated || cloudLoading));
   const showApp = Boolean(cloud && authReady && session && hydrated && !cloudLoading && !remoteDisabled);
 
@@ -389,8 +367,8 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         <p className="text-xs font-semibold tracking-[0.2em] text-teal-500">ATLAS</p>
         <h1 className="text-lg font-semibold text-zinc-100">Could not connect to your database</h1>
         <p className="max-w-md text-sm leading-relaxed text-zinc-400">
-          Sign-in may be blocked (enable Anonymous under Authentication → Providers) or the first load failed (run
-          SQL migrations, check RLS, and confirm this app uses the same Supabase project as your dashboard).
+          The first load failed after sign-in. Run SQL migrations, check Row Level Security, and confirm this app
+          points at the same Supabase project as your dashboard.
         </p>
         <button
           type="button"
@@ -410,6 +388,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           Starting…
         </div>
       ) : null}
+      {showSignIn && supabase ? <GoogleSignIn supabase={supabase} /> : null}
       {showCloudSplash ? (
         <div className="flex min-h-[100dvh] flex-1 flex-col items-center justify-center gap-2 px-4 text-zinc-500">
           <p>Syncing your log…</p>
