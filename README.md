@@ -1,6 +1,10 @@
 # ATLAS
 
-Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and JSON backup (data stays in the browser via `localStorage`).
+Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and **JSON backup**.
+
+**With Supabase configured** (see below), you sign in with an **email magic link** and your meals, workouts, and targets are stored in your account (Row Level Security so only you can read them). The app still mirrors a copy to `localStorage` on each device as a cache.
+
+**Without Supabase env vars**, the app runs in **offline-only** mode: everything stays in the browser on that device.
 
 The UI is **mobile-first**: thumb-friendly bottom navigation on small screens, safe-area padding for notched devices, `100dvh` layout, 16px+ form fields (avoids iOS zoom on focus), and a [web app manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest) so you can add the site to your home screen.
 
@@ -13,6 +17,28 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Supabase setup (cloud sync)
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In **SQL Editor**, run the migration in `supabase/migrations/20260418120000_init_tracker.sql` (creates `profiles`, `meals`, `workouts`, RLS policies, and a trigger to create a profile row when a user signs up).
+3. **Authentication → URL configuration**  
+   - **Site URL**: `http://localhost:3000` for local dev; your production URL (e.g. `https://atlas-five-pi.vercel.app`) for prod.  
+   - **Redirect URLs**: add both  
+     `http://localhost:3000/auth/callback`  
+     `https://YOUR_DOMAIN/auth/callback`
+4. **Authentication → Providers**: ensure **Email** is enabled (magic link / OTP).
+5. Copy **Project URL** and **anon public** key from **Project Settings → API**.
+6. Create `.env.local` from `.env.example` and set:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+```
+
+7. Add the same variables in **Vercel → Project → Settings → Environment Variables**, then redeploy.
+
+The first time you sign in on a device that already had **local-only** data, ATLAS will **upload that snapshot** to your account if the cloud is still empty.
+
 ## Live on Vercel
 
 Production: **https://atlas-five-pi.vercel.app**
@@ -22,8 +48,6 @@ Redeploy from this machine after changes:
 ```bash
 vercel deploy --prod --yes
 ```
-
-Because this app stores data only in the visitor’s browser, each device keeps its own log unless you use **You → Export / Import JSON** to move a backup.
 
 ## GitHub (connect for deploy-on-push)
 
@@ -40,7 +64,3 @@ Replace `YOUR_USER/YOUR_REPO` with your GitHub username and repository name.
 
 1. Open [Vercel project settings → Git](https://vercel.com/rob-4757s-projects/atlas/settings/git) for this project, click **Connect Git Repository**, and choose the repo you just pushed; or  
 2. From this directory after the repo exists: `vercel git connect https://github.com/YOUR_USER/YOUR_REPO.git`
-
-## Supabase (optional next step)
-
-For **automatic sync** across phone and desktop (instead of manual JSON export), you would add [Supabase](https://supabase.com): Auth (e.g. magic link), tables for `profiles`, `meals`, and `workouts`, and Row Level Security so each user only reads their own rows. The current app stays usable without Supabase; treat cloud sync as a follow-on feature when you are ready to manage env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) on Vercel.

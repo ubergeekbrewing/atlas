@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import { todayLocal, weekdayLabel, weekRangeFromLocalDate } from "@/lib/date";
 import type { ActivityLevel, MealEntry, MealType, Profile, WorkoutIntensity } from "@/lib/types";
@@ -144,14 +144,6 @@ export default function TrackerApp() {
     ? Math.min(100, (totals.cal / t.profile.dailyCalorieGoal) * 100)
     : 0;
 
-  if (!t.hydrated) {
-    return (
-      <div className="flex min-h-[100dvh] flex-1 flex-col items-center justify-center px-4 pb-8 pt-[max(2rem,env(safe-area-inset-top))] text-base text-zinc-500">
-        Loading your log…
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-[100dvh] flex-1 flex-col">
       <header className="border-b border-zinc-200/80 bg-white/95 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:px-4 md:py-4">
@@ -163,6 +155,9 @@ export default function TrackerApp() {
             <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-xl">
               Diet &amp; fitness
             </h1>
+            {t.cloudSync && t.userEmail ? (
+              <p className="mt-1 truncate text-xs text-zinc-500">Signed in as {t.userEmail}</p>
+            ) : null}
           </div>
           <nav className="hidden flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900 md:flex">
             {TABS.map(({ id, label }) => (
@@ -182,6 +177,24 @@ export default function TrackerApp() {
           </nav>
         </div>
       </header>
+
+      {t.syncError ? (
+        <div
+          role="alert"
+          className="border-b border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 md:px-4"
+        >
+          <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p>{t.syncError}</p>
+            <button
+              type="button"
+              onClick={() => t.clearSyncError()}
+              className="shrink-0 self-start rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-900 dark:border-red-800 dark:text-red-100"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-3 md:gap-6 md:px-4 md:py-8 md:pb-8">
         {tab === "dashboard" && (
@@ -272,7 +285,9 @@ export default function TrackerApp() {
                   key: m.id,
                   primary: m.name,
                   secondary: `${m.mealType} · ${Math.round(m.calories)} kcal`,
-                  onRemove: () => t.removeMeal(m.id),
+                  onRemove: () => {
+                    void t.removeMeal(m.id);
+                  },
                 }))}
               />
               <DayList
@@ -282,7 +297,9 @@ export default function TrackerApp() {
                   key: w.id,
                   primary: w.title,
                   secondary: `${w.durationMin} min · ${w.intensity}`,
-                  onRemove: () => t.removeWorkout(w.id),
+                  onRemove: () => {
+                    void t.removeWorkout(w.id);
+                  },
                 }))}
               />
             </section>
@@ -297,7 +314,7 @@ export default function TrackerApp() {
             importRef={importRef}
             onImportFile={async (file) => {
               const text = await file.text();
-              const ok = t.importSnapshot(text);
+              const ok = await t.importSnapshot(text);
               if (!ok) alert("Could not read that file. Check JSON format.");
               else setProfileMountKey((k) => k + 1);
             }}
@@ -341,7 +358,9 @@ export default function TrackerApp() {
       </nav>
 
       <footer className="hidden border-t border-zinc-200 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800 md:block">
-        Stored on this device only. Export from You → backup before clearing browser data.
+        {t.cloudSync
+          ? "Data is synced to your ATLAS account (Supabase). Export JSON anytime from You → Backup."
+          : "Stored on this device only. Export from You → backup before clearing browser data."}
       </footer>
     </div>
   );
@@ -402,7 +421,7 @@ function MealsPanel({ defaultDate }: { defaultDate: string }) {
     [t.meals],
   );
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     const entry: Omit<MealEntry, "id"> = {
@@ -414,7 +433,7 @@ function MealsPanel({ defaultDate }: { defaultDate: string }) {
       carbG: clampNum(Number(carbG), 0, 2000),
       fatG: clampNum(Number(fatG), 0, 1000),
     };
-    t.addMeal(entry);
+    await t.addMeal(entry);
     setName("");
   }
 
@@ -518,7 +537,7 @@ function MealsPanel({ defaultDate }: { defaultDate: string }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => t.removeMeal(m.id)}
+                  onClick={() => void t.removeMeal(m.id)}
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/50 sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-1 sm:text-xs"
                 >
                   Remove
@@ -546,10 +565,10 @@ function WorkoutsPanel({ defaultDate }: { defaultDate: string }) {
     [t.workouts],
   );
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    t.addWorkout({
+    await t.addWorkout({
       date,
       title: title.trim(),
       durationMin: clampNum(Number(durationMin), 0, 1440),
@@ -640,7 +659,7 @@ function WorkoutsPanel({ defaultDate }: { defaultDate: string }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => t.removeWorkout(w.id)}
+                  onClick={() => void t.removeWorkout(w.id)}
                   className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/50 sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-1 sm:text-xs"
                 >
                   Remove
@@ -660,17 +679,21 @@ function ProfilePanel({
   onExport,
 }: {
   importRef: React.RefObject<HTMLInputElement | null>;
-  onImportFile: (file: File) => void;
+  onImportFile: (file: File) => void | Promise<void>;
   onExport: () => void;
 }) {
   const t = useTracker();
   const [p, setP] = useState<Profile>(t.profile);
 
-  function save(e: React.FormEvent) {
+  useEffect(() => {
+    queueMicrotask(() => setP(t.profile));
+  }, [t.profile]);
+
+  async function save(e: React.FormEvent) {
     e.preventDefault();
     const w = p.weightKg;
     const h = p.heightCm;
-    t.setProfile({
+    await t.setProfile({
       ...p,
       dailyCalorieGoal: clampNum(p.dailyCalorieGoal, 500, 20000),
       proteinGoalG: clampNum(p.proteinGoalG, 0, 500),
@@ -790,14 +813,31 @@ function ProfilePanel({
         </button>
       </form>
 
+      {t.cloudSync ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Account</h2>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Signed in as <span className="font-medium text-zinc-900 dark:text-zinc-200">{t.userEmail}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => void t.signOut()}
+            className={`${secondaryBtn} mt-4 w-full sm:w-auto`}
+          >
+            Sign out
+          </button>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Backup</h2>
         <p className="mt-2 text-base leading-relaxed text-zinc-500 sm:text-sm">
           Download JSON or restore from a file. Handy when switching browsers or devices.
         </p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400 md:hidden">
-          Data stays on this phone until you export. Back up before clearing site data or switching
-          phones.
+          {t.cloudSync
+            ? "Your entries sync to your account. Export JSON for an extra backup anytime."
+            : "Data stays on this phone until you export. Back up before clearing site data or switching phones."}
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button type="button" onClick={onExport} className={`${secondaryBtn} w-full sm:w-auto`}>
