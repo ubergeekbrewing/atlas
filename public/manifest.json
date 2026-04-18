@@ -1,0 +1,17 @@
+{
+  "name": "Atlas — diet & fitness",
+  "short_name": "Atlas",
+  "description": "Personal diet and workout log",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}

@@ -17,6 +17,61 @@ const activityLevels: ActivityLevel[] = [
   "athlete",
 ];
 
+const TABS: { id: Tab; label: string; mobileLabel: string }[] = [
+  { id: "dashboard", label: "Today", mobileLabel: "Today" },
+  { id: "meals", label: "Meals", mobileLabel: "Meals" },
+  { id: "workouts", label: "Workouts", mobileLabel: "Train" },
+  { id: "profile", label: "You", mobileLabel: "You" },
+];
+
+/** 16px+ on controls avoids iOS zoom when focusing inputs */
+const inp =
+  "min-h-12 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-3 text-base text-zinc-900 [-webkit-text-size-adjust:100%] dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100";
+
+const fieldLbl = "mb-1 block text-sm font-medium text-zinc-600 dark:text-zinc-400";
+
+const primaryBtn =
+  "min-h-12 w-full rounded-xl bg-teal-600 px-4 py-3 text-base font-semibold text-white active:scale-[0.99] active:bg-teal-800 dark:bg-teal-500 dark:active:bg-teal-700 md:w-auto md:px-8";
+
+const secondaryBtn =
+  "inline-flex min-h-12 items-center justify-center rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-base font-medium text-zinc-800 active:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:active:bg-zinc-800";
+
+function TabGlyph({ tab, active }: { tab: Tab; active: boolean }) {
+  const c = active
+    ? "text-teal-600 dark:text-teal-400"
+    : "text-zinc-500 dark:text-zinc-400";
+  const stroke = "h-6 w-6 shrink-0 stroke-current stroke-[1.65] fill-none";
+  switch (tab) {
+    case "dashboard":
+      return (
+        <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
+          <rect x="3.5" y="5" width="17" height="15" rx="2" />
+          <path d="M8 3.5v3M16 3.5v3M3.5 10.5h17" strokeLinecap="round" />
+        </svg>
+      );
+    case "meals":
+      return (
+        <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
+          <path d="M6 11h12v8a2 2 0 01-2 2H8a2 2 0 01-2-2v-8z" />
+          <path d="M9 11V9a3 3 0 016 0v2" strokeLinecap="round" />
+        </svg>
+      );
+    case "workouts":
+      return (
+        <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
+          <path d="M6.5 12h11M9 8.5L7 12l2 3.5M15 8.5l2 3.5-2 3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "profile":
+      return (
+        <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
+          <circle cx="12" cy="9" r="3.25" />
+          <path d="M6.5 19.5c.75-3 4.25-4.25 5.5-4.25s4.75 1.25 5.5 4.25" strokeLinecap="round" />
+        </svg>
+      );
+  }
+}
+
 function clampNum(n: number, min: number, max: number): number {
   if (Number.isNaN(n)) return min;
   return Math.min(max, Math.max(min, n));
@@ -35,14 +90,14 @@ function MacroBar({
 }) {
   const pct = goal > 0 ? Math.min(100, (current / goal) * 100) : 0;
   return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-sm">
+    <div className="space-y-2">
+      <div className="flex justify-between text-base sm:text-sm">
         <span className="text-zinc-600 dark:text-zinc-400">{label}</span>
         <span className="tabular-nums text-zinc-800 dark:text-zinc-200">
           {Math.round(current)} / {Math.round(goal)} g
         </span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+      <div className="h-3 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800 sm:h-2.5">
         <div
           className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
           style={{ width: `${pct}%` }}
@@ -91,38 +146,31 @@ export default function TrackerApp() {
 
   if (!t.hydrated) {
     return (
-      <div className="flex flex-1 items-center justify-center text-zinc-500">
+      <div className="flex min-h-[100dvh] flex-1 flex-col items-center justify-center px-4 pb-8 pt-[max(2rem,env(safe-area-inset-top))] text-base text-zinc-500">
         Loading your log…
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-zinc-200/80 bg-white/90 px-4 py-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-h-[100dvh] flex-1 flex-col">
+      <header className="border-b border-zinc-200/80 bg-white/95 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:px-4 md:py-4">
+        <div className="mx-auto flex max-w-3xl flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-widest text-teal-600 dark:text-teal-400">
               Atlas
             </p>
-            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-xl">
               Diet &amp; fitness
             </h1>
           </div>
-          <nav className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900">
-            {(
-              [
-                ["dashboard", "Today"],
-                ["meals", "Meals"],
-                ["workouts", "Workouts"],
-                ["profile", "You"],
-              ] as const
-            ).map(([id, label]) => (
+          <nav className="hidden flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-900 md:flex">
+            {TABS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   tab === id
                     ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
                     : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -135,49 +183,47 @@ export default function TrackerApp() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] pt-3 md:gap-6 md:px-4 md:py-8 md:pb-8">
         {tab === "dashboard" && (
           <>
             {t.profile.displayName.trim() ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="text-base text-zinc-600 dark:text-zinc-400 sm:text-sm">
                 <span className="font-medium text-zinc-900 dark:text-zinc-200">{t.profile.displayName.trim()}</span>
                 <span className="text-zinc-500"> — your targets below</span>
               </p>
             ) : null}
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40">
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Day
-              </label>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+              <label className={fieldLbl}>Day</label>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+                  className={inp}
                 />
-                <span className="text-sm text-zinc-500">{weekdayLabel(selectedDate)}</span>
+                <span className="text-base text-zinc-500 sm:text-sm">{weekdayLabel(selectedDate)}</span>
               </div>
             </section>
 
-            <section className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-teal-50 to-white p-5 dark:border-zinc-800 dark:from-teal-950/40 dark:to-zinc-900/40">
+            <section className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+              <div className="rounded-2xl border border-zinc-200 bg-gradient-to-br from-teal-50 to-white p-4 dark:border-zinc-800 dark:from-teal-950/40 dark:to-zinc-900/40 sm:p-5">
                 <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Calories</h2>
-                <p className="mt-2 text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+                <p className="mt-2 text-3xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50 sm:text-3xl">
                   {Math.round(totals.cal)}
                   <span className="text-lg font-normal text-zinc-500">
                     {" "}
                     / {t.profile.dailyCalorieGoal}
                   </span>
                 </p>
-                <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/80 dark:bg-zinc-800">
+                <div className="mt-4 h-3.5 overflow-hidden rounded-full bg-white/80 dark:bg-zinc-800 sm:h-3">
                   <div
                     className="h-full rounded-full bg-teal-500 transition-all duration-500 dark:bg-teal-400"
                     style={{ width: `${calPct}%` }}
                   />
                 </div>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
                 <h2 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                   Workouts this week
                 </h2>
@@ -188,13 +234,15 @@ export default function TrackerApp() {
                     / {t.profile.weeklyWorkoutGoal}
                   </span>
                 </p>
-                <p className="mt-2 text-xs text-zinc-500">Week is Monday–Sunday (local time).</p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  Week is Monday–Sunday (local time).
+                </p>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40">
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Macros</h2>
-              <div className="mt-4 space-y-4">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Macros</h2>
+              <div className="mt-4 space-y-5 sm:space-y-4">
                 <MacroBar
                   label="Protein"
                   current={totals.p}
@@ -216,7 +264,7 @@ export default function TrackerApp() {
               </div>
             </section>
 
-            <section className="grid gap-4 sm:grid-cols-2">
+            <section className="grid gap-3 sm:grid-cols-2 sm:gap-4">
               <DayList
                 title="Meals"
                 empty="No meals logged for this day."
@@ -266,7 +314,33 @@ export default function TrackerApp() {
         )}
       </main>
 
-      <footer className="border-t border-zinc-200 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200/90 bg-white/95 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] pt-1 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/95 dark:shadow-[0_-4px_24px_rgba(0,0,0,0.35)] md:hidden"
+        aria-label="Primary"
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-4">
+          {TABS.map(({ id, mobileLabel }) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 transition-colors active:bg-zinc-100 dark:active:bg-zinc-900 ${
+                  active ? "text-teal-700 dark:text-teal-300" : "text-zinc-600 dark:text-zinc-400"
+                }`}
+              >
+                <TabGlyph tab={id} active={active} />
+                <span className="max-w-[4.5rem] truncate text-[11px] font-semibold leading-tight">
+                  {mobileLabel}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      <footer className="hidden border-t border-zinc-200 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800 md:block">
         Stored on this device only. Export from You → backup before clearing browser data.
       </footer>
     </div>
@@ -283,25 +357,25 @@ function DayList({
   items: { key: string; primary: string; secondary: string; onRemove: () => void }[];
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-4">
+      <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">{title}</h2>
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500">{empty}</p>
+        <p className="mt-3 text-base text-zinc-500 sm:text-sm">{empty}</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {items.map((row) => (
             <li
               key={row.key}
-              className="flex items-start justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60"
+              className="flex items-start justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-3 dark:bg-zinc-950/60 sm:py-2"
             >
-              <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">{row.primary}</p>
-                <p className="text-xs text-zinc-500">{row.secondary}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">{row.primary}</p>
+                <p className="mt-0.5 text-sm text-zinc-500 sm:text-xs">{row.secondary}</p>
               </div>
               <button
                 type="button"
                 onClick={row.onRemove}
-                className="shrink-0 text-xs text-red-600 hover:underline dark:text-red-400"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/50 sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-1 sm:text-xs"
               >
                 Remove
               </button>
@@ -345,28 +419,23 @@ function MealsPanel({ defaultDate }: { defaultDate: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
       <form
         onSubmit={submit}
-        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40"
+        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5"
       >
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Log a meal</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Date</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-            />
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Log a meal</h2>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+          <label className="block">
+            <span className={fieldLbl}>Date</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inp} />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Meal</span>
+          <label className="block">
+            <span className={fieldLbl}>Meal</span>
             <select
               value={mealType}
               onChange={(e) => setMealType(e.target.value as MealType)}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={inp}
             >
               {mealTypes.map((m) => (
                 <option key={m} value={m}>
@@ -376,75 +445,73 @@ function MealsPanel({ defaultDate }: { defaultDate: string }) {
             </select>
           </label>
         </div>
-        <label className="block text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Food</span>
+        <label className="block">
+          <span className={fieldLbl}>Food</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Greek yogurt, berries, granola"
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+            className={inp}
+            autoComplete="off"
           />
         </label>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">kcal</span>
+          <label className="block">
+            <span className={fieldLbl}>kcal</span>
             <input
               value={calories}
               onChange={(e) => setCalories(e.target.value)}
               inputMode="decimal"
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Protein (g)</span>
+          <label className="block">
+            <span className={fieldLbl}>Protein (g)</span>
             <input
               value={proteinG}
               onChange={(e) => setProteinG(e.target.value)}
               inputMode="decimal"
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Carbs (g)</span>
+          <label className="block">
+            <span className={fieldLbl}>Carbs (g)</span>
             <input
               value={carbG}
               onChange={(e) => setCarbG(e.target.value)}
               inputMode="decimal"
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Fat (g)</span>
+          <label className="block">
+            <span className={fieldLbl}>Fat (g)</span>
             <input
               value={fatG}
               onChange={(e) => setFatG(e.target.value)}
               inputMode="decimal"
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
         </div>
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-teal-600 py-2.5 text-sm font-medium text-white hover:bg-teal-700 sm:w-auto sm:px-6 dark:bg-teal-500 dark:hover:bg-teal-400"
-        >
+        <button type="submit" className={primaryBtn}>
           Add meal
         </button>
       </form>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Recent entries</h2>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Recent entries</h2>
         {recent.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">No meals yet.</p>
+          <p className="mt-3 text-base text-zinc-500 sm:text-sm">No meals yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {recent.map((m) => (
               <li
                 key={m.id}
-                className="flex items-start justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60"
+                className="flex items-start justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-3 dark:bg-zinc-950/60 sm:py-2"
               >
-                <div>
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{m.name}</p>
-                  <p className="text-xs text-zinc-500">
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">{m.name}</p>
+                  <p className="mt-0.5 text-sm text-zinc-500 sm:text-xs">
                     {m.date} · {m.mealType} · {Math.round(m.calories)} kcal · P{m.proteinG} C{m.carbG}{" "}
                     F{m.fatG}
                   </p>
@@ -452,7 +519,7 @@ function MealsPanel({ defaultDate }: { defaultDate: string }) {
                 <button
                   type="button"
                   onClick={() => t.removeMeal(m.id)}
-                  className="shrink-0 text-xs text-red-600 hover:underline dark:text-red-400"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/50 sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-1 sm:text-xs"
                 >
                   Remove
                 </button>
@@ -494,28 +561,23 @@ function WorkoutsPanel({ defaultDate }: { defaultDate: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
       <form
         onSubmit={submit}
-        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40"
+        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5"
       >
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Log a workout</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Date</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
-            />
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Log a workout</h2>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+          <label className="block">
+            <span className={fieldLbl}>Date</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inp} />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Intensity</span>
+          <label className="block">
+            <span className={fieldLbl}>Intensity</span>
             <select
               value={intensity}
               onChange={(e) => setIntensity(e.target.value as WorkoutIntensity)}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm capitalize dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} capitalize`}
             >
               {intensities.map((i) => (
                 <option key={i} value={i}>
@@ -525,55 +587,53 @@ function WorkoutsPanel({ defaultDate }: { defaultDate: string }) {
             </select>
           </label>
         </div>
-        <label className="block text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Session</span>
+        <label className="block">
+          <span className={fieldLbl}>Session</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Upper body strength, Zone 2 run"
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+            className={inp}
+            autoComplete="off"
           />
         </label>
-        <label className="block text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Duration (minutes)</span>
+        <label className="block">
+          <span className={fieldLbl}>Duration (minutes)</span>
           <input
             value={durationMin}
             onChange={(e) => setDurationMin(e.target.value)}
             inputMode="numeric"
-            className="mt-1 w-full max-w-xs rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+            className={`${inp} max-w-full tabular-nums sm:max-w-xs`}
           />
         </label>
-        <label className="block text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Notes (optional)</span>
+        <label className="block">
+          <span className={fieldLbl}>Notes (optional)</span>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+            rows={3}
+            className={`${inp} min-h-[6.5rem] resize-y`}
           />
         </label>
-        <button
-          type="submit"
-          className="w-full rounded-xl bg-teal-600 py-2.5 text-sm font-medium text-white hover:bg-teal-700 sm:w-auto sm:px-6 dark:bg-teal-500 dark:hover:bg-teal-400"
-        >
+        <button type="submit" className={primaryBtn}>
           Add workout
         </button>
       </form>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Recent sessions</h2>
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Recent sessions</h2>
         {recent.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">No workouts yet.</p>
+          <p className="mt-3 text-base text-zinc-500 sm:text-sm">No workouts yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {recent.map((w) => (
               <li
                 key={w.id}
-                className="flex items-start justify-between gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-950/60"
+                className="flex items-start justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-3 dark:bg-zinc-950/60 sm:py-2"
               >
-                <div>
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{w.title}</p>
-                  <p className="text-xs text-zinc-500">
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">{w.title}</p>
+                  <p className="mt-0.5 text-sm text-zinc-500 sm:text-xs">
                     {w.date} · {w.durationMin} min · {w.intensity}
                     {w.notes ? ` · ${w.notes}` : ""}
                   </p>
@@ -581,7 +641,7 @@ function WorkoutsPanel({ defaultDate }: { defaultDate: string }) {
                 <button
                   type="button"
                   onClick={() => t.removeWorkout(w.id)}
-                  className="shrink-0 text-xs text-red-600 hover:underline dark:text-red-400"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/50 sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-1 sm:text-xs"
                 >
                   Remove
                 </button>
@@ -623,44 +683,45 @@ function ProfilePanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 md:space-y-6">
       <form
         onSubmit={save}
-        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40"
+        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5"
       >
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Your targets</h2>
-        <p className="text-sm text-zinc-500">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Your targets</h2>
+        <p className="text-base leading-relaxed text-zinc-500 sm:text-sm">
           Tune these to match your plan. The dashboard compares your logged day against these numbers.
         </p>
-        <label className="block text-sm">
-          <span className="text-zinc-600 dark:text-zinc-400">Name (optional)</span>
+        <label className="block">
+          <span className={fieldLbl}>Name (optional)</span>
           <input
             value={p.displayName}
             onChange={(e) => setP({ ...p, displayName: e.target.value })}
-            className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+            className={inp}
+            autoComplete="name"
           />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Daily calories</span>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+          <label className="block">
+            <span className={fieldLbl}>Daily calories</span>
             <input
               type="number"
               value={p.dailyCalorieGoal}
               onChange={(e) => setP({ ...p, dailyCalorieGoal: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Workouts / week goal</span>
+          <label className="block">
+            <span className={fieldLbl}>Workouts / week goal</span>
             <input
               type="number"
               value={p.weeklyWorkoutGoal}
               onChange={(e) => setP({ ...p, weeklyWorkoutGoal: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3 sm:gap-3">
           {(
             [
               ["proteinGoalG", "Protein goal (g/day)"],
@@ -668,20 +729,20 @@ function ProfilePanel({
               ["fatGoalG", "Fat goal (g/day)"],
             ] as const
           ).map(([field, label]) => (
-            <label key={field} className="block text-sm">
-              <span className="text-zinc-600 dark:text-zinc-400">{label}</span>
+            <label key={field} className="block">
+              <span className={fieldLbl}>{label}</span>
               <input
                 type="number"
                 value={p[field]}
                 onChange={(e) => setP({ ...p, [field]: Number(e.target.value) })}
-                className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+                className={`${inp} tabular-nums`}
               />
             </label>
           ))}
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Weight (kg, optional)</span>
+        <div className="grid gap-4 sm:grid-cols-3 sm:gap-3">
+          <label className="block">
+            <span className={fieldLbl}>Weight (kg, optional)</span>
             <input
               type="number"
               step="0.1"
@@ -692,11 +753,11 @@ function ProfilePanel({
                   weightKg: e.target.value === "" ? null : Number(e.target.value),
                 })
               }
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Height (cm, optional)</span>
+          <label className="block">
+            <span className={fieldLbl}>Height (cm, optional)</span>
             <input
               type="number"
               value={p.heightCm ?? ""}
@@ -706,15 +767,15 @@ function ProfilePanel({
                   heightCm: e.target.value === "" ? null : Number(e.target.value),
                 })
               }
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm tabular-nums dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} tabular-nums`}
             />
           </label>
-          <label className="block text-sm">
-            <span className="text-zinc-600 dark:text-zinc-400">Activity level</span>
+          <label className="block">
+            <span className={fieldLbl}>Activity level</span>
             <select
               value={p.activityLevel}
               onChange={(e) => setP({ ...p, activityLevel: e.target.value as ActivityLevel })}
-              className="mt-1 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm capitalize dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+              className={`${inp} capitalize`}
             >
               {activityLevels.map((a) => (
                 <option key={a} value={a}>
@@ -724,25 +785,22 @@ function ProfilePanel({
             </select>
           </label>
         </div>
-        <button
-          type="submit"
-          className="rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-400"
-        >
+        <button type="submit" className={`${primaryBtn} md:px-10`}>
           Save profile
         </button>
       </form>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Backup</h2>
-        <p className="mt-2 text-sm text-zinc-500">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Backup</h2>
+        <p className="mt-2 text-base leading-relaxed text-zinc-500 sm:text-sm">
           Download JSON or restore from a file. Handy when switching browsers or devices.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onExport}
-            className="rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          >
+        <p className="mt-2 text-sm leading-relaxed text-zinc-400 md:hidden">
+          Data stays on this phone until you export. Back up before clearing site data or switching
+          phones.
+        </p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <button type="button" onClick={onExport} className={`${secondaryBtn} w-full sm:w-auto`}>
             Export JSON
           </button>
           <input
@@ -759,7 +817,7 @@ function ProfilePanel({
           <button
             type="button"
             onClick={() => importRef.current?.click()}
-            className="rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            className={`${secondaryBtn} w-full sm:w-auto`}
           >
             Import JSON
           </button>
