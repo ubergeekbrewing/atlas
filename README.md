@@ -1,4 +1,4 @@
-# Atlas
+# ATLAS
 
 Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and JSON backup (data stays in the browser via `localStorage`).
 
@@ -20,7 +20,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 git add -A
-git commit -m "Initial Atlas tracker"
+git commit -m "Initial ATLAS tracker"
 git branch -M main
 git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
 git push -u origin main

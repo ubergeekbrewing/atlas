@@ -1,5 +1,6 @@
 {
   "name": "atlas",
+  "description": "ATLAS — diet & fitness tracker",
   "version": "0.1.0",
   "private": true,
   "scripts": {

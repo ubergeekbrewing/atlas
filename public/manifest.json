@@ -1,7 +1,7 @@
 {
-  "name": "Atlas — diet & fitness",
-  "short_name": "Atlas",
-  "description": "Personal diet and workout log",
+  "name": "ATLAS — diet & fitness",
+  "short_name": "ATLAS",
+  "description": "ATLAS — personal diet and workout log",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fafafa",

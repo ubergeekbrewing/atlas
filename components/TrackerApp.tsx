@@ -157,8 +157,8 @@ export default function TrackerApp() {
       <header className="border-b border-zinc-200/80 bg-white/95 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95 md:px-4 md:py-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-teal-600 dark:text-teal-400">
-              Atlas
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-600 dark:text-teal-400">
+              ATLAS
             </p>
             <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-xl">
               Diet &amp; fitness
@@ -306,7 +306,7 @@ export default function TrackerApp() {
               const url = URL.createObjectURL(blob);
               const a = document.createElement("a");
               a.href = url;
-              a.download = `atlas-backup-${todayLocal()}.json`;
+              a.download = `ATLAS-backup-${todayLocal()}.json`;
               a.click();
               URL.revokeObjectURL(url);
             }}

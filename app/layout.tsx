@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Atlas — diet & fitness",
-  description: "Personal diet and workout log with daily targets and local backup.",
+  title: "ATLAS — diet & fitness",
+  description: "ATLAS — personal diet and workout log with daily targets and local backup.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Atlas",
+    title: "ATLAS",
     statusBarStyle: "default",
   },
   formatDetection: {
