@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ATLAS — diet & fitness",
-  description: "ATLAS — personal diet and workout log with daily targets and local backup.",
+  description: "ATLAS — personal diet and workout log with daily targets; data in Supabase.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",

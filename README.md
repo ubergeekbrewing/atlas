@@ -1,10 +1,10 @@
 # ATLAS
 
-Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and **JSON backup**.
+Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and optional **JSON export** for your own backups.
 
-**With Supabase configured** (see below), the app starts an **anonymous Supabase session** automatically (no email or password). Your meals, workouts, and targets are stored under that account (Row Level Security tied to `auth.uid()`). The app still mirrors a copy to `localStorage` on each device as a cache. If anonymous sign-in is disabled in the project, ATLAS falls back to **local-only** on that device with no extra prompt.
+**Supabase is required.** The app starts an **anonymous Supabase session** automatically (no email or password) when env vars are set. Meals, workouts, labs, and targets live only in your Supabase project (Row Level Security tied to `auth.uid()`). There is no `localStorage` cache of the log.
 
-**Without Supabase env vars**, the app runs in **offline-only** mode: everything stays in the browser on that device.
+**Without Supabase env vars**, the app shows a short setup screen instead of the tracker.
 
 The UI is **mobile-first**: thumb-friendly bottom navigation on small screens, safe-area padding for notched devices, `100dvh` layout, 16px+ form fields (avoids iOS zoom on focus), and a [web app manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest) so you can add the site to your home screen.
 
@@ -39,7 +39,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 7. Add the same variables in **Vercel → Project → Settings → Environment Variables**, then redeploy.
 
-The first time an anonymous session loads on a device that already had **local-only** data, ATLAS will **upload that snapshot** to the cloud if the remote tables are still empty for that user.
+Use **You → Backup** to download JSON or restore from a file; imports replace the signed-in user’s rows in Supabase.
 
 ## Live on Vercel
 

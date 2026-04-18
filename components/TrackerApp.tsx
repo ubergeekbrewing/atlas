@@ -377,8 +377,8 @@ export default function TrackerApp() {
 
       <footer className="hidden border-t border-zinc-200 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800 md:block">
         {t.cloudSync
-          ? "Data is synced to your ATLAS account (Supabase). Export JSON anytime from You → Backup."
-          : "Stored on this device only. Export from You → backup before clearing browser data."}
+          ? "Your log is stored in Supabase. Export JSON anytime from You → Backup."
+          : "Waiting for database sync…"}
       </footer>
     </div>
   );
@@ -1054,8 +1054,8 @@ function ProfilePanel({
         </p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400 md:hidden">
           {t.cloudSync
-            ? "Your entries sync to your account. Export JSON for an extra backup anytime."
-            : "Data stays on this phone until you export. Back up before clearing site data or switching phones."}
+            ? "Entries live in your Supabase project. Export JSON for your own backup copy anytime."
+            : "Waiting for database sync…"}
         </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button type="button" onClick={onExport} className={`${secondaryBtn} w-full sm:w-auto`}>
