@@ -2,7 +2,7 @@
 
 Personal **diet and fitness** tracker: daily calories and macros vs your targets, workout log with a weekly session count, and **JSON backup**.
 
-**With Supabase configured** (see below), you sign in with an **email magic link** and your meals, workouts, and targets are stored in your account (Row Level Security so only you can read them). The app still mirrors a copy to `localStorage` on each device as a cache.
+**With Supabase configured** (see below), the app starts an **anonymous Supabase session** automatically (no email or password). Your meals, workouts, and targets are stored under that account (Row Level Security tied to `auth.uid()`). The app still mirrors a copy to `localStorage` on each device as a cache. If anonymous sign-in is disabled in the project, ATLAS falls back to **local-only** on that device and shows a short error you can dismiss.
 
 **Without Supabase env vars**, the app runs in **offline-only** mode: everything stays in the browser on that device.
 
@@ -28,7 +28,7 @@ Open [http://localhost:3000](http://localhost:3000).
    - **Redirect URLs**: add both  
      `http://localhost:3000/auth/callback`  
      `https://YOUR_DOMAIN/auth/callback`
-4. **Authentication → Providers**: ensure **Email** is enabled (magic link / OTP).
+4. **Authentication → Providers**: enable **Anonymous** (required for automatic cloud sync). Email or other providers are optional.
 5. Copy **Project URL** and **anon public** key from **Project Settings → API**.
 6. Create `.env.local` from `.env.example` and set:
 
@@ -39,7 +39,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 7. Add the same variables in **Vercel → Project → Settings → Environment Variables**, then redeploy.
 
-The first time you sign in on a device that already had **local-only** data, ATLAS will **upload that snapshot** to your account if the cloud is still empty.
+The first time an anonymous session loads on a device that already had **local-only** data, ATLAS will **upload that snapshot** to the cloud if the remote tables are still empty for that user.
 
 ## Live on Vercel
 

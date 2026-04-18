@@ -3,9 +3,9 @@ import Link from "next/link";
 export default function AuthErrorPage() {
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Sign-in link problem</h1>
+      <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Auth redirect problem</h1>
       <p className="max-w-sm text-sm text-zinc-600 dark:text-zinc-400">
-        That link may be expired or invalid. Request a new sign-in email from ATLAS.
+        That link may be expired or invalid. Open ATLAS from your usual URL and try again.
       </p>
       <Link
         href="/"

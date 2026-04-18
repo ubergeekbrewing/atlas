@@ -10,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import AuthScreen from "@/components/AuthScreen";
 import { loadSnapshot, saveSnapshot } from "@/lib/persist";
 import { createSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
@@ -74,6 +73,8 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [labAbnormals, setLabAbnormals] = useState<LabAbnormalEntry[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
+  /** True when Supabase is configured but anonymous sign-in failed — use local storage only */
+  const [remoteDisabled, setRemoteDisabled] = useState(false);
 
   useEffect(() => {
     if (cloud) return;
@@ -92,16 +93,52 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!cloud || !supabase) return;
     let cancelled = false;
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (cancelled) return;
-      setSession(s);
-      setUserId(s?.user.id ?? null);
-      setAuthReady(true);
-    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setUserId(s?.user.id ?? null);
     });
+
+    (async () => {
+      const { data: got } = await supabase.auth.getSession();
+      if (cancelled) return;
+      const existing = got.session;
+      if (existing?.user) {
+        setSession(existing);
+        setUserId(existing.user.id);
+        setAuthReady(true);
+        return;
+      }
+      const { data: anon, error } = await supabase.auth.signInAnonymously();
+      if (cancelled) return;
+      if (error || !anon.session?.user) {
+        setRemoteDisabled(true);
+        setSyncError(
+          error?.message ??
+            "Enable Anonymous sign-ins in Supabase (Authentication → Providers), or remove Supabase env vars to use this device only.",
+        );
+        queueMicrotask(() => {
+          const snap = loadSnapshot();
+          if (snap) {
+            setProfileState({ ...defaultProfile, ...snap.profile });
+            setMeals(snap.meals);
+            setWorkouts(snap.workouts);
+            setLabAbnormals(snap.labAbnormals ?? []);
+          } else {
+            setProfileState(defaultProfile);
+            setMeals([]);
+            setWorkouts([]);
+            setLabAbnormals([]);
+          }
+          setHydrated(true);
+        });
+        setAuthReady(true);
+        return;
+      }
+      setSession(anon.session);
+      setUserId(anon.session.user.id);
+      setAuthReady(true);
+    })();
+
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
@@ -110,6 +147,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud || !supabase || !authReady) return;
+    if (remoteDisabled) return;
     if (!userId) {
       queueMicrotask(() => {
         setProfileState(defaultProfile);
@@ -166,13 +204,13 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [cloud, supabase, authReady, userId]);
+  }, [cloud, supabase, authReady, userId, remoteDisabled]);
 
   useEffect(() => {
     if (!hydrated) return;
-    if (cloud && !session) return;
+    if (cloud && !session && !remoteDisabled) return;
     saveSnapshot({ profile, meals, workouts, labAbnormals });
-  }, [hydrated, cloud, session, profile, meals, workouts, labAbnormals]);
+  }, [hydrated, cloud, session, remoteDisabled, profile, meals, workouts, labAbnormals]);
 
   const clearSyncError = useCallback(() => setSyncError(null), []);
 
@@ -301,13 +339,30 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut();
+      if (cloud) {
+        const { data: anon, error } = await supabase.auth.signInAnonymously();
+        if (error || !anon.session?.user) {
+          setRemoteDisabled(true);
+          setSession(null);
+          setUserId(null);
+          setSyncError(
+            error?.message ??
+              "Could not start a new session. Enable Anonymous sign-ins in Supabase or remove env vars for local-only mode.",
+          );
+        } else {
+          setRemoteDisabled(false);
+          setSyncError(null);
+          setSession(anon.session);
+          setUserId(anon.session.user.id);
+        }
+      }
     }
     setProfileState(defaultProfile);
     setMeals([]);
     setWorkouts([]);
     setLabAbnormals([]);
-    setSyncError(null);
-  }, [supabase]);
+    if (!cloud) setSyncError(null);
+  }, [supabase, cloud]);
 
   const addLabAbnormal = useCallback(
     async (r: Omit<LabAbnormalEntry, "id">) => {
@@ -346,7 +401,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   const value = useMemo<TrackerContextValue>(
     () => ({
       hydrated,
-      cloudSync: Boolean(cloud && session),
+      cloudSync: Boolean(cloud && session && userId && !remoteDisabled),
       userEmail: session?.user.email ?? null,
       syncError,
       clearSyncError,
@@ -369,6 +424,8 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       hydrated,
       cloud,
       session,
+      userId,
+      remoteDisabled,
       syncError,
       clearSyncError,
       profile,
@@ -390,10 +447,11 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
 
   const showLocalSplash = !cloud && !hydrated;
   const showAuthBoot = cloud && !authReady;
-  const showAuthScreen = Boolean(cloud && authReady && !session && supabase);
   const showCloudSplash = Boolean(cloud && authReady && session && (!hydrated || cloudLoading));
   const showApp =
-    (cloud && authReady && session && hydrated && !cloudLoading) || (!cloud && hydrated);
+    (cloud && authReady && remoteDisabled && hydrated) ||
+    (cloud && authReady && session && hydrated && !cloudLoading) ||
+    (!cloud && hydrated);
 
   return (
     <TrackerContext.Provider value={value}>
@@ -407,7 +465,6 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           Starting…
         </div>
       ) : null}
-      {showAuthScreen && supabase ? <AuthScreen supabase={supabase} /> : null}
       {showCloudSplash ? (
         <div className="flex min-h-[100dvh] flex-1 flex-col items-center justify-center gap-2 px-4 text-zinc-500">
           <p>Syncing your log…</p>
