@@ -13,29 +13,33 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Push to GitHub
+## Live on Vercel
 
-1. Create a new empty repository on [GitHub](https://github.com/new) (no README/license if this folder already has them).
-2. In this project directory:
+Production: **https://atlas-five-pi.vercel.app**
+
+Redeploy from this machine after changes:
 
 ```bash
-git add -A
-git commit -m "Initial ATLAS tracker"
-git branch -M main
+vercel deploy --prod --yes
+```
+
+Because this app stores data only in the visitor’s browser, each device keeps its own log unless you use **You → Export / Import JSON** to move a backup.
+
+## GitHub (connect for deploy-on-push)
+
+The default branch is **`main`**. Create an **empty** repo on [GitHub](https://github.com/new) (skip README, license, and `.gitignore` if GitHub offers them—you already have those here), then:
+
+```bash
 git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
 git push -u origin main
 ```
 
-Replace `YOUR_USER/YOUR_REPO` with your repository path.
+Replace `YOUR_USER/YOUR_REPO` with your GitHub username and repository name.
 
-## Deploy on Vercel
+**Link Vercel to GitHub** so every push rebuilds the site:
 
-1. Sign in at [vercel.com](https://vercel.com) and choose **Add New… → Project**.
-2. **Import** your GitHub repository.
-3. Framework preset **Next.js**; leave defaults (build: `next build`, output: `.next`).
-4. Click **Deploy**. Your app will be live at `https://<project>.vercel.app`.
-
-Because this app stores data only in the visitor’s browser, each device keeps its own log unless you use **You → Export / Import JSON** to move a backup.
+1. Open [Vercel project settings → Git](https://vercel.com/rob-4757s-projects/atlas/settings/git) for this project, click **Connect Git Repository**, and choose the repo you just pushed; or  
+2. From this directory after the repo exists: `vercel git connect https://github.com/YOUR_USER/YOUR_REPO.git`
 
 ## Supabase (optional next step)
 
