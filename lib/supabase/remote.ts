@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   ActivityLevel,
+  LabAbnormalEntry,
+  LabResultFlag,
   MealEntry,
   MealType,
   Profile,
@@ -42,6 +44,16 @@ type WorkoutRow = {
   title: string;
   duration_min: number;
   intensity: string;
+  notes: string;
+};
+
+type LabAbnormalRow = {
+  id: string;
+  user_id: string;
+  draw_date: string;
+  test_name: string;
+  value: string;
+  flag: string;
   notes: string;
 };
 
@@ -97,19 +109,33 @@ export function mapWorkoutRow(row: WorkoutRow): WorkoutEntry {
   };
 }
 
+export function mapLabAbnormalRow(row: LabAbnormalRow): LabAbnormalEntry {
+  const f = (row.flag ?? "") as LabResultFlag;
+  return {
+    id: row.id,
+    drawDate: row.draw_date.slice(0, 10),
+    testName: row.test_name,
+    value: row.value,
+    flag: f === "H" || f === "L" || f === "P" ? f : "",
+    notes: row.notes ?? "",
+  };
+}
+
 export async function fetchUserTracker(
   supabase: SupabaseClient,
   userId: string,
-): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[] }> {
-  const [profileRes, mealsRes, workoutsRes] = await Promise.all([
+): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[]; labAbnormals: LabAbnormalEntry[] }> {
+  const [profileRes, mealsRes, workoutsRes, labsRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("meals").select("*").eq("user_id", userId).order("entry_date", { ascending: false }),
     supabase.from("workouts").select("*").eq("user_id", userId).order("entry_date", { ascending: false }),
+    supabase.from("lab_abnormals").select("*").eq("user_id", userId).order("draw_date", { ascending: false }),
   ]);
 
   if (profileRes.error) throw profileRes.error;
   if (mealsRes.error) throw mealsRes.error;
   if (workoutsRes.error) throw workoutsRes.error;
+  if (labsRes.error) throw labsRes.error;
 
   const profile = profileRes.data
     ? mapProfileRow(profileRes.data as ProfileRow)
@@ -117,8 +143,9 @@ export async function fetchUserTracker(
 
   const meals = (mealsRes.data as MealRow[] | null)?.map(mapMealRow) ?? [];
   const workouts = (workoutsRes.data as WorkoutRow[] | null)?.map(mapWorkoutRow) ?? [];
+  const labAbnormals = (labsRes.data as LabAbnormalRow[] | null)?.map(mapLabAbnormalRow) ?? [];
 
-  return { profile, meals, workouts };
+  return { profile, meals, workouts, labAbnormals };
 }
 
 export async function upsertProfileRemote(
@@ -185,6 +212,34 @@ export async function deleteWorkoutRemote(
   if (error) throw error;
 }
 
+export async function insertLabAbnormalRemote(
+  supabase: SupabaseClient,
+  userId: string,
+  row: Omit<LabAbnormalEntry, "id"> & { id?: string },
+): Promise<LabAbnormalEntry> {
+  const insert: Record<string, unknown> = {
+    user_id: userId,
+    draw_date: row.drawDate,
+    test_name: row.testName,
+    value: row.value,
+    flag: row.flag,
+    notes: row.notes ?? "",
+  };
+  if (row.id && isUuid(row.id)) insert.id = row.id;
+  const { data, error } = await supabase.from("lab_abnormals").insert(insert).select("*").single();
+  if (error) throw error;
+  return mapLabAbnormalRow(data as LabAbnormalRow);
+}
+
+export async function deleteLabAbnormalRemote(
+  supabase: SupabaseClient,
+  userId: string,
+  labId: string,
+): Promise<void> {
+  const { error } = await supabase.from("lab_abnormals").delete().eq("id", labId).eq("user_id", userId);
+  if (error) throw error;
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -196,7 +251,7 @@ export async function migrateLocalToRemote(
   supabase: SupabaseClient,
   userId: string,
   snap: TrackerSnapshot,
-): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[] }> {
+): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[]; labAbnormals: LabAbnormalEntry[] }> {
   await upsertProfileRemote(supabase, userId, snap.profile);
 
   if (snap.meals.length) {
@@ -232,6 +287,24 @@ export async function migrateLocalToRemote(
       return row;
     });
     const { error } = await supabase.from("workouts").insert(workoutRows);
+    if (error) throw error;
+  }
+
+  const labsM = snap.labAbnormals ?? [];
+  if (labsM.length) {
+    const labRows = labsM.map((r) => {
+      const row: Record<string, unknown> = {
+        user_id: userId,
+        draw_date: r.drawDate,
+        test_name: r.testName,
+        value: r.value,
+        flag: r.flag,
+        notes: r.notes ?? "",
+      };
+      if (isUuid(r.id)) row.id = r.id;
+      return row;
+    });
+    const { error } = await supabase.from("lab_abnormals").insert(labRows);
     if (error) throw error;
   }
 
@@ -252,21 +325,29 @@ function profileDiffersFromDefaults(p: Profile): boolean {
   );
 }
 
-export function shouldMigrateLocal(snap: TrackerSnapshot | null, remoteMeals: number, remoteWorkouts: number): boolean {
+export function shouldMigrateLocal(
+  snap: TrackerSnapshot | null,
+  remoteMeals: number,
+  remoteWorkouts: number,
+  remoteLabs = 0,
+): boolean {
   if (!snap) return false;
-  if (remoteMeals > 0 || remoteWorkouts > 0) return false;
-  return snap.meals.length > 0 || snap.workouts.length > 0 || profileDiffersFromDefaults(snap.profile);
+  if (remoteMeals > 0 || remoteWorkouts > 0 || remoteLabs > 0) return false;
+  const labN = snap.labAbnormals?.length ?? 0;
+  return snap.meals.length > 0 || snap.workouts.length > 0 || labN > 0 || profileDiffersFromDefaults(snap.profile);
 }
 
 export async function replaceRemoteWithSnapshot(
   supabase: SupabaseClient,
   userId: string,
   snap: TrackerSnapshot,
-): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[] }> {
+): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[]; labAbnormals: LabAbnormalEntry[] }> {
   const { error: delM } = await supabase.from("meals").delete().eq("user_id", userId);
   if (delM) throw delM;
   const { error: delW } = await supabase.from("workouts").delete().eq("user_id", userId);
   if (delW) throw delW;
+  const { error: delL } = await supabase.from("lab_abnormals").delete().eq("user_id", userId);
+  if (delL) throw delL;
 
   await upsertProfileRemote(supabase, userId, snap.profile);
 
@@ -303,6 +384,24 @@ export async function replaceRemoteWithSnapshot(
       return row;
     });
     const { error } = await supabase.from("workouts").insert(workoutRows);
+    if (error) throw error;
+  }
+
+  const labsR = snap.labAbnormals ?? [];
+  if (labsR.length) {
+    const labRows = labsR.map((r) => {
+      const row: Record<string, unknown> = {
+        user_id: userId,
+        draw_date: r.drawDate,
+        test_name: r.testName,
+        value: r.value,
+        flag: r.flag,
+        notes: r.notes ?? "",
+      };
+      if (isUuid(r.id)) row.id = r.id;
+      return row;
+    });
+    const { error } = await supabase.from("lab_abnormals").insert(labRows);
     if (error) throw error;
   }
 

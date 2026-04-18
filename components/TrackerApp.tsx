@@ -3,9 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import { todayLocal, weekdayLabel, weekRangeFromLocalDate } from "@/lib/date";
-import type { ActivityLevel, MealEntry, MealType, Profile, WorkoutIntensity } from "@/lib/types";
+import { labPanelTemplateRows } from "@/lib/lab-template";
+import type {
+  ActivityLevel,
+  LabAbnormalEntry,
+  LabResultFlag,
+  MealEntry,
+  MealType,
+  Profile,
+  WorkoutIntensity,
+} from "@/lib/types";
 
-type Tab = "dashboard" | "meals" | "workouts" | "profile";
+type Tab = "dashboard" | "meals" | "workouts" | "labs" | "profile";
 
 const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const intensities: WorkoutIntensity[] = ["light", "moderate", "hard"];
@@ -21,6 +30,7 @@ const TABS: { id: Tab; label: string; mobileLabel: string }[] = [
   { id: "dashboard", label: "Today", mobileLabel: "Today" },
   { id: "meals", label: "Meals", mobileLabel: "Meals" },
   { id: "workouts", label: "Workouts", mobileLabel: "Train" },
+  { id: "labs", label: "Labs", mobileLabel: "Labs" },
   { id: "profile", label: "You", mobileLabel: "You" },
 ];
 
@@ -60,6 +70,13 @@ function TabGlyph({ tab, active }: { tab: Tab; active: boolean }) {
       return (
         <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
           <path d="M6.5 12h11M9 8.5L7 12l2 3.5M15 8.5l2 3.5-2 3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "labs":
+      return (
+        <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
+          <path d="M9 3h6v4H9V3zM8 8h8l-1 13H9L8 8z" strokeLinejoin="round" />
+          <path d="M10 14h4" strokeLinecap="round" />
         </svg>
       );
     case "profile":
@@ -308,6 +325,7 @@ export default function TrackerApp() {
 
         {tab === "meals" && <MealsPanel defaultDate={selectedDate} />}
         {tab === "workouts" && <WorkoutsPanel defaultDate={selectedDate} />}
+        {tab === "labs" && <LabsPanel />}
         {tab === "profile" && (
           <ProfilePanel
             key={profileMountKey}
@@ -335,7 +353,7 @@ export default function TrackerApp() {
         className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200/90 bg-white/95 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] pt-1 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/95 dark:shadow-[0_-4px_24px_rgba(0,0,0,0.35)] md:hidden"
         aria-label="Primary"
       >
-        <div className="mx-auto grid max-w-lg grid-cols-4">
+        <div className="mx-auto grid max-w-lg grid-cols-5">
           {TABS.map(({ id, mobileLabel }) => {
             const active = tab === id;
             return (
@@ -348,7 +366,7 @@ export default function TrackerApp() {
                 }`}
               >
                 <TabGlyph tab={id} active={active} />
-                <span className="max-w-[4.5rem] truncate text-[11px] font-semibold leading-tight">
+                <span className="max-w-[3.25rem] truncate text-[10px] font-semibold leading-tight">
                   {mobileLabel}
                 </span>
               </button>
@@ -362,6 +380,206 @@ export default function TrackerApp() {
           ? "Data is synced to your ATLAS account (Supabase). Export JSON anytime from You → Backup."
           : "Stored on this device only. Export from You → backup before clearing browser data."}
       </footer>
+    </div>
+  );
+}
+
+function labFlagBadgeClass(flag: LabResultFlag): string {
+  if (flag === "H") return "bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-200";
+  if (flag === "L") return "bg-sky-100 text-sky-900 dark:bg-sky-950/70 dark:text-sky-200";
+  if (flag === "P") return "bg-amber-100 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200";
+  return "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
+}
+
+function LabsPanel() {
+  const t = useTracker();
+  const [drawDate, setDrawDate] = useState(todayLocal);
+  const [testName, setTestName] = useState("");
+  const [value, setValue] = useState("");
+  const [flag, setFlag] = useState<LabResultFlag>("");
+  const [notes, setNotes] = useState("");
+  const [templateDate, setTemplateDate] = useState(todayLocal);
+  const [templateWorking, setTemplateWorking] = useState(false);
+
+  const byDraw = useMemo(() => {
+    const m = new Map<string, LabAbnormalEntry[]>();
+    for (const r of t.labAbnormals) {
+      if (!m.has(r.drawDate)) m.set(r.drawDate, []);
+      m.get(r.drawDate)!.push(r);
+    }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => a.testName.localeCompare(b.testName));
+    }
+    return [...m.entries()].sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));
+  }, [t.labAbnormals]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!testName.trim()) return;
+    await t.addLabAbnormal({
+      drawDate,
+      testName: testName.trim(),
+      value: value.trim() || "—",
+      flag,
+      notes: notes.trim(),
+    });
+    setTestName("");
+    setValue("");
+    setNotes("");
+  }
+
+  async function applyTemplate() {
+    setTemplateWorking(true);
+    try {
+      const keys = new Set(t.labAbnormals.map((x) => `${x.drawDate}|${x.testName.toLowerCase()}`));
+      for (const row of labPanelTemplateRows()) {
+        const key = `${templateDate}|${row.testName.toLowerCase()}`;
+        if (keys.has(key)) continue;
+        await t.addLabAbnormal({ ...row, drawDate: templateDate });
+        keys.add(key);
+      }
+    } finally {
+      setTemplateWorking(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5 md:space-y-6">
+      <p className="text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-sm">
+        Log each <strong className="text-zinc-800 dark:text-zinc-200">flagged</strong> line from your report with the
+        draw date so you can compare the next time you have labs.
+      </p>
+
+      <div className="rounded-2xl border border-zinc-200 bg-teal-50/80 p-4 dark:border-zinc-800 dark:bg-teal-950/25 sm:p-5">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Quick add your last panel</h2>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Adds the abnormality list you shared (BUN/Creat ratio, lipids, ANA, vitamin D, etc.) for the draw date below.
+          Skips any test name already saved for that date.
+        </p>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="block flex-1">
+            <span className={fieldLbl}>Draw date for this panel</span>
+            <input
+              type="date"
+              value={templateDate}
+              onChange={(e) => setTemplateDate(e.target.value)}
+              className={inp}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={templateWorking}
+            onClick={() => void applyTemplate()}
+            className={`${secondaryBtn} w-full shrink-0 sm:w-auto ${templateWorking ? "opacity-60" : ""}`}
+          >
+            {templateWorking ? "Adding…" : "Add template rows"}
+          </button>
+        </div>
+      </div>
+
+      <form
+        onSubmit={(e) => void submit(e)}
+        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5"
+      >
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Add one line</h2>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+          <label className="block sm:col-span-2">
+            <span className={fieldLbl}>Draw date</span>
+            <input type="date" value={drawDate} onChange={(e) => setDrawDate(e.target.value)} className={inp} />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className={fieldLbl}>Test name</span>
+            <input
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="e.g. LDL cholesterol"
+              className={inp}
+              autoComplete="off"
+            />
+          </label>
+          <label className="block">
+            <span className={fieldLbl}>Value</span>
+            <input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="e.g. 104 or Positive"
+              className={inp}
+              autoComplete="off"
+            />
+          </label>
+          <label className="block">
+            <span className={fieldLbl}>Flag</span>
+            <select
+              value={flag}
+              onChange={(e) => setFlag(e.target.value as LabResultFlag)}
+              className={inp}
+            >
+              <option value="">—</option>
+              <option value="H">H (high)</option>
+              <option value="L">L (low)</option>
+              <option value="P">P (positive)</option>
+            </select>
+          </label>
+          <label className="block sm:col-span-2">
+            <span className={fieldLbl}>Notes (optional)</span>
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. fasting, lab name"
+              className={inp}
+              autoComplete="off"
+            />
+          </label>
+        </div>
+        <button type="submit" className={primaryBtn}>
+          Save line
+        </button>
+      </form>
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">By draw date</h2>
+        {byDraw.length === 0 ? (
+          <p className="mt-3 text-base text-zinc-500 sm:text-sm">No lab rows yet.</p>
+        ) : (
+          <div className="mt-4 space-y-6">
+            {byDraw.map(([date, rows]) => (
+              <section key={date}>
+                <h3 className="text-sm font-semibold text-teal-800 dark:text-teal-300">{weekdayLabel(date)} · {date}</h3>
+                <ul className="mt-2 divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {rows.map((r) => (
+                    <li
+                      key={r.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{r.testName}</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          <span className="tabular-nums">{r.value}</span>
+                          {r.notes ? <span className="text-zinc-500"> · {r.notes}</span> : null}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span
+                          className={`rounded-md px-2 py-1 text-xs font-semibold uppercase ${labFlagBadgeClass(r.flag)}`}
+                        >
+                          {r.flag || "—"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void t.removeLabAbnormal(r.id)}
+                          className="rounded-lg px-2 py-2 text-sm font-medium text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/40"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

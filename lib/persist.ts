@@ -16,6 +16,7 @@ export function loadSnapshot(): TrackerSnapshot | null {
       profile: { ...defaultProfile, ...(o.profile as object) } as TrackerSnapshot["profile"],
       meals: Array.isArray(o.meals) ? (o.meals as TrackerSnapshot["meals"]) : [],
       workouts: Array.isArray(o.workouts) ? (o.workouts as TrackerSnapshot["workouts"]) : [],
+      labAbnormals: Array.isArray(o.labAbnormals) ? (o.labAbnormals as TrackerSnapshot["labAbnormals"]) : [],
     };
   } catch {
     return null;

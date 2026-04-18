@@ -20,7 +20,9 @@ Open [http://localhost:3000](http://localhost:3000).
 ### Supabase setup (cloud sync)
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run the migration in `supabase/migrations/20260418120000_init_tracker.sql` (creates `profiles`, `meals`, `workouts`, RLS policies, and a trigger to create a profile row when a user signs up).
+2. In **SQL Editor**, run these migrations in order (creates tables, RLS, and the new-user profile trigger):
+   - `supabase/migrations/20260418120000_init_tracker.sql` — `profiles`, `meals`, `workouts`
+   - `supabase/migrations/20260420200000_lab_abnormals.sql` — `lab_abnormals` (manual lab flags / values per draw)
 3. **Authentication → URL configuration**  
    - **Site URL**: `http://localhost:3000` for local dev; your production URL (e.g. `https://atlas-five-pi.vercel.app`) for prod.  
    - **Redirect URLs**: add both  

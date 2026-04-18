@@ -36,10 +36,24 @@ export type WorkoutEntry = {
   notes: string;
 };
 
+/** Lab flag: high, low, positive (qualitative), or none */
+export type LabResultFlag = "H" | "L" | "P" | "";
+
+export type LabAbnormalEntry = {
+  id: string;
+  /** Blood draw / report date (YYYY-MM-DD) */
+  drawDate: string;
+  testName: string;
+  value: string;
+  flag: LabResultFlag;
+  notes: string;
+};
+
 export type TrackerSnapshot = {
   profile: Profile;
   meals: MealEntry[];
   workouts: WorkoutEntry[];
+  labAbnormals: LabAbnormalEntry[];
 };
 
 export const defaultProfile: Profile = {
