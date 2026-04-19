@@ -34,3 +34,15 @@ body {
   color: var(--foreground);
   touch-action: manipulation;
 }
+
+/* Hide number spinners (still allow type="number" elsewhere with decimals via step="any") */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}

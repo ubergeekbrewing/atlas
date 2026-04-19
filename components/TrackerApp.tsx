@@ -406,44 +406,87 @@ function formatIngredientCost(cost: number | null): string {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cost);
 }
 
+/** Trim trailing zeros for display */
+function formatMacroQty(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  const s = n.toFixed(4).replace(/\.?0+$/, "");
+  return s === "" ? "0" : s;
+}
+
+function formatIngredientServing(row: IngredientEntry): string | null {
+  const u = row.units.trim();
+  const s = row.servingSize;
+  if (s == null && !u) return null;
+  if (s != null && u) return `Per ${formatMacroQty(s)} ${u}`;
+  if (s != null) return `Per ${formatMacroQty(s)}`;
+  if (u) return u;
+  return null;
+}
+
+function parseDecimalField(raw: string, min: number, max: number): number {
+  const t = raw.trim();
+  if (t === "") return 0;
+  const n = Number.parseFloat(t);
+  if (!Number.isFinite(n)) return 0;
+  return clampNum(n, min, max);
+}
+
+function parseOptionalPositive(raw: string): number | null {
+  const t = raw.trim();
+  if (t === "") return null;
+  const n = Number.parseFloat(t);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
 function IngredientsPanel() {
   const t = useTracker();
   const [name, setName] = useState("");
-  const [calories, setCalories] = useState(0);
-  const [proteinG, setProteinG] = useState(0);
-  const [carbG, setCarbG] = useState(0);
-  const [fatG, setFatG] = useState(0);
+  const [calStr, setCalStr] = useState("");
+  const [proteinStr, setProteinStr] = useState("");
+  const [carbStr, setCarbStr] = useState("");
+  const [fatStr, setFatStr] = useState("");
+  const [servingStr, setServingStr] = useState("");
+  const [unitsStr, setUnitsStr] = useState("");
   const [whereToFind, setWhereToFind] = useState("");
   const [costStr, setCostStr] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    const raw = costStr.trim();
-    const cost = raw === "" ? null : Number.parseFloat(raw);
+    const rawCost = costStr.trim();
+    const costParsed = rawCost === "" ? null : Number.parseFloat(rawCost);
+    const cost =
+      costParsed != null && Number.isFinite(costParsed) ? Math.round(costParsed * 100) / 100 : null;
     await t.addIngredient({
       name: name.trim(),
-      calories: clampNum(calories, 0, 20000),
-      proteinG: clampNum(proteinG, 0, 500),
-      carbG: clampNum(carbG, 0, 1000),
-      fatG: clampNum(fatG, 0, 500),
+      calories: parseDecimalField(calStr, 0, 20000),
+      proteinG: parseDecimalField(proteinStr, 0, 500),
+      carbG: parseDecimalField(carbStr, 0, 1000),
+      fatG: parseDecimalField(fatStr, 0, 500),
+      servingSize: parseOptionalPositive(servingStr),
+      units: unitsStr.trim(),
       whereToFind: whereToFind.trim(),
-      cost: cost != null && Number.isFinite(cost) ? Math.round(cost * 100) / 100 : null,
+      cost,
     });
     setName("");
-    setCalories(0);
-    setProteinG(0);
-    setCarbG(0);
-    setFatG(0);
+    setCalStr("");
+    setProteinStr("");
+    setCarbStr("");
+    setFatStr("");
+    setServingStr("");
+    setUnitsStr("");
     setWhereToFind("");
     setCostStr("");
   }
 
+  const textDecimalInp = `${inp} tabular-nums`;
+
   return (
     <div className="space-y-5 md:space-y-6">
       <p className="text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-sm">
-        Build your <strong className="text-zinc-800 dark:text-zinc-200">pantry</strong>: macros for your usual portion,
-        where you buy or keep it, and what you typically pay (optional).
+        Build your <strong className="text-zinc-800 dark:text-zinc-200">pantry</strong>: macros for the serving you
+        define below, where you buy it, and optional cost.
       </p>
 
       <form
@@ -451,7 +494,7 @@ function IngredientsPanel() {
         className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5"
       >
         <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Add ingredient</h2>
-        <label className="block">
+        <label className="block cursor-text select-none">
           <span className={fieldLbl}>Name</span>
           <input
             value={name}
@@ -462,62 +505,94 @@ function IngredientsPanel() {
           />
         </label>
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
-          <label className="block">
-            <span className={fieldLbl}>Calories (kcal)</span>
+          <label className="block cursor-text select-none">
+            <span className={fieldLbl}>Serving size</span>
             <input
-              type="number"
-              min={0}
-              value={calories}
-              onChange={(e) => setCalories(Number(e.target.value))}
-              className={`${inp} tabular-nums`}
+              type="text"
+              inputMode="decimal"
+              value={servingStr}
+              onChange={(e) => setServingStr(e.target.value)}
+              placeholder="e.g. 2 or 0.5 or 30"
+              className={textDecimalInp}
+              autoComplete="off"
             />
           </label>
-          <label className="block">
+          <label className="block cursor-text select-none">
+            <span className={fieldLbl}>Units</span>
+            <input
+              value={unitsStr}
+              onChange={(e) => setUnitsStr(e.target.value)}
+              placeholder="e.g. scoop, g, cup, Tbsp"
+              className={inp}
+              autoComplete="off"
+            />
+          </label>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+          <label className="block cursor-text select-none">
+            <span className={fieldLbl}>Calories (kcal)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={calStr}
+              onChange={(e) => setCalStr(e.target.value)}
+              placeholder="e.g. 150"
+              className={textDecimalInp}
+              autoComplete="off"
+            />
+          </label>
+          <label className="block cursor-text select-none">
             <span className={fieldLbl}>Cost (USD, optional)</span>
             <input
-              type="number"
-              min={0}
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               value={costStr}
               onChange={(e) => setCostStr(e.target.value)}
-              placeholder="e.g. 4.99"
-              className={`${inp} tabular-nums`}
+              placeholder="e.g. 19.99"
+              className={textDecimalInp}
+              autoComplete="off"
             />
           </label>
         </div>
         <div className="grid gap-4 sm:grid-cols-3 sm:gap-3">
-          <label className="block">
+          <label className="block cursor-text select-none">
             <span className={fieldLbl}>Protein (g)</span>
             <input
-              type="number"
-              min={0}
-              value={proteinG}
-              onChange={(e) => setProteinG(Number(e.target.value))}
-              className={`${inp} tabular-nums`}
+              type="text"
+              inputMode="decimal"
+              value={proteinStr}
+              onChange={(e) => setProteinStr(e.target.value)}
+              placeholder="0"
+              className={textDecimalInp}
+              autoComplete="off"
             />
           </label>
-          <label className="block">
+          <label className="block cursor-text select-none">
             <span className={fieldLbl}>Carbs (g)</span>
             <input
-              type="number"
-              min={0}
-              value={carbG}
-              onChange={(e) => setCarbG(Number(e.target.value))}
-              className={`${inp} tabular-nums`}
+              type="text"
+              inputMode="decimal"
+              value={carbStr}
+              onChange={(e) => setCarbStr(e.target.value)}
+              placeholder="0"
+              className={textDecimalInp}
+              autoComplete="off"
             />
           </label>
-          <label className="block">
+          <label className="block cursor-text select-none">
             <span className={fieldLbl}>Fat (g)</span>
             <input
-              type="number"
-              min={0}
-              value={fatG}
-              onChange={(e) => setFatG(Number(e.target.value))}
-              className={`${inp} tabular-nums`}
+              type="text"
+              inputMode="decimal"
+              value={fatStr}
+              onChange={(e) => setFatStr(e.target.value)}
+              placeholder="0"
+              className={textDecimalInp}
+              autoComplete="off"
             />
           </label>
         </div>
-        <label className="block">
+        <label className="block cursor-text select-none">
           <span className={fieldLbl}>Where to find it</span>
           <input
             value={whereToFind}
@@ -538,35 +613,41 @@ function IngredientsPanel() {
           <p className="mt-3 text-base text-zinc-500 sm:text-sm">No ingredients yet.</p>
         ) : (
           <ul className="mt-3 space-y-3">
-            {t.ingredients.map((row: IngredientEntry) => (
-              <li
-                key={row.id}
-                className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-3 dark:border-zinc-800 dark:bg-zinc-950/60 sm:py-2.5"
-              >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">{row.name}</p>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                      {Math.round(row.calories)} kcal · P {Math.round(row.proteinG)}g · C {Math.round(row.carbG)}g · F{" "}
-                      {Math.round(row.fatG)}g
-                    </p>
-                    {row.whereToFind ? (
-                      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-500">{row.whereToFind}</p>
-                    ) : null}
-                    <p className="mt-1 text-sm font-medium text-teal-700 dark:text-teal-400">
-                      {formatIngredientCost(row.cost)}
-                    </p>
+            {t.ingredients.map((row: IngredientEntry) => {
+              const servingLine = formatIngredientServing(row);
+              return (
+                <li
+                  key={row.id}
+                  className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-3 dark:border-zinc-800 dark:bg-zinc-950/60 sm:py-2.5"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">{row.name}</p>
+                      {servingLine ? (
+                        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{servingLine}</p>
+                      ) : null}
+                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                        {formatMacroQty(row.calories)} kcal · P {formatMacroQty(row.proteinG)}g · C{" "}
+                        {formatMacroQty(row.carbG)}g · F {formatMacroQty(row.fatG)}g
+                      </p>
+                      {row.whereToFind ? (
+                        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-500">{row.whereToFind}</p>
+                      ) : null}
+                      <p className="mt-1 text-sm font-medium text-teal-700 dark:text-teal-400">
+                        {formatIngredientCost(row.cost)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void t.removeIngredient(row.id)}
+                      className="shrink-0 self-start text-sm font-medium text-red-600 dark:text-red-400"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void t.removeIngredient(row.id)}
-                    className="shrink-0 self-start text-sm font-medium text-red-600 dark:text-red-400"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

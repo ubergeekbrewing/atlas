@@ -62,10 +62,12 @@ type IngredientRow = {
   id: string;
   user_id: string;
   name: string;
-  calories: number;
-  protein_g: number;
-  carb_g: number;
-  fat_g: number;
+  calories: string | number;
+  protein_g: string | number;
+  carb_g: string | number;
+  fat_g: string | number;
+  serving_size: string | number | null;
+  units: string;
   where_to_find: string;
   cost: string | number | null;
 };
@@ -134,6 +136,18 @@ export function mapLabAbnormalRow(row: LabAbnormalRow): LabAbnormalEntry {
   };
 }
 
+function numFromDb(v: unknown): number {
+  if (v == null || v === "") return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function optionalNumFromDb(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mapIngredientRow(row: IngredientRow): IngredientEntry {
   const c = row.cost;
   let cost: number | null = null;
@@ -144,10 +158,12 @@ function mapIngredientRow(row: IngredientRow): IngredientEntry {
   return {
     id: row.id,
     name: row.name ?? "",
-    calories: row.calories ?? 0,
-    proteinG: row.protein_g ?? 0,
-    carbG: row.carb_g ?? 0,
-    fatG: row.fat_g ?? 0,
+    calories: numFromDb(row.calories),
+    proteinG: numFromDb(row.protein_g),
+    carbG: numFromDb(row.carb_g),
+    fatG: numFromDb(row.fat_g),
+    servingSize: optionalNumFromDb(row.serving_size),
+    units: row.units ?? "",
     whereToFind: row.where_to_find ?? "",
     cost,
   };
@@ -293,6 +309,8 @@ export async function insertIngredientRemote(
     protein_g: row.proteinG,
     carb_g: row.carbG,
     fat_g: row.fatG,
+    serving_size: row.servingSize,
+    units: row.units.trim(),
     where_to_find: row.whereToFind.trim(),
     cost: row.cost,
   };
@@ -404,6 +422,8 @@ export async function replaceRemoteWithSnapshot(
         protein_g: r.proteinG,
         carb_g: r.carbG,
         fat_g: r.fatG,
+        serving_size: r.servingSize ?? null,
+        units: r.units ?? "",
         where_to_find: r.whereToFind,
         cost: r.cost,
       };

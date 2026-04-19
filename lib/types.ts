@@ -57,6 +57,10 @@ export type IngredientEntry = {
   proteinG: number;
   carbG: number;
   fatG: number;
+  /** Amount for one logical serving (e.g. 2, 0.5, 30); null if unspecified */
+  servingSize: number | null;
+  /** Unit label for that serving (e.g. scoop, g, cup) */
+  units: string;
   whereToFind: string;
   /** Price in your usual currency (stored as a number); null if unknown */
   cost: number | null;

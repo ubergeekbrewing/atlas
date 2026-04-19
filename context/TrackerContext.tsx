@@ -247,7 +247,20 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           meals: Array.isArray(o.meals) ? (o.meals as MealEntry[]) : [],
           workouts: Array.isArray(o.workouts) ? (o.workouts as WorkoutEntry[]) : [],
           labAbnormals: Array.isArray(o.labAbnormals) ? (o.labAbnormals as LabAbnormalEntry[]) : [],
-          ingredients: Array.isArray(o.ingredients) ? (o.ingredients as IngredientEntry[]) : [],
+          ingredients: Array.isArray(o.ingredients)
+            ? (o.ingredients as Partial<IngredientEntry>[]).map((x) => ({
+                id: x.id ?? "",
+                name: x.name ?? "",
+                calories: x.calories ?? 0,
+                proteinG: x.proteinG ?? 0,
+                carbG: x.carbG ?? 0,
+                fatG: x.fatG ?? 0,
+                servingSize: x.servingSize ?? null,
+                units: x.units ?? "",
+                whereToFind: x.whereToFind ?? "",
+                cost: x.cost ?? null,
+              }))
+            : [],
         };
         setSyncError(null);
         const next = await replaceRemoteWithSnapshot(supabase, userId, snap);
