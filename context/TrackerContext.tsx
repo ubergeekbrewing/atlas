@@ -13,17 +13,19 @@ import {
 import GoogleSignIn from "@/components/GoogleSignIn";
 import { createSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
+  deleteIngredientRemote,
   deleteLabAbnormalRemote,
   deleteMealRemote,
   deleteWorkoutRemote,
   fetchUserTracker,
+  insertIngredientRemote,
   insertLabAbnormalRemote,
   insertMealRemote,
   insertWorkoutRemote,
   replaceRemoteWithSnapshot,
   upsertProfileRemote,
 } from "@/lib/supabase/remote";
-import type { LabAbnormalEntry, MealEntry, Profile, WorkoutEntry } from "@/lib/types";
+import type { IngredientEntry, LabAbnormalEntry, MealEntry, Profile, WorkoutEntry } from "@/lib/types";
 import { defaultProfile } from "@/lib/types";
 
 type TrackerContextValue = {
@@ -36,6 +38,7 @@ type TrackerContextValue = {
   meals: MealEntry[];
   workouts: WorkoutEntry[];
   labAbnormals: LabAbnormalEntry[];
+  ingredients: IngredientEntry[];
   setProfile: (p: Profile) => Promise<void>;
   addMeal: (m: Omit<MealEntry, "id">) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
@@ -43,6 +46,8 @@ type TrackerContextValue = {
   removeWorkout: (id: string) => Promise<void>;
   addLabAbnormal: (r: Omit<LabAbnormalEntry, "id">) => Promise<void>;
   removeLabAbnormal: (id: string) => Promise<void>;
+  addIngredient: (r: Omit<IngredientEntry, "id">) => Promise<void>;
+  removeIngredient: (id: string) => Promise<void>;
   importSnapshot: (json: string) => Promise<boolean>;
   exportSnapshot: () => string;
   signOut: () => Promise<void>;
@@ -63,6 +68,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   const [meals, setMeals] = useState<MealEntry[]>([]);
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
   const [labAbnormals, setLabAbnormals] = useState<LabAbnormalEntry[]>([]);
+  const [ingredients, setIngredients] = useState<IngredientEntry[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
   /** True when Supabase auth or the initial data load failed — blocking screen, no offline copy. */
   const [remoteDisabled, setRemoteDisabled] = useState(false);
@@ -104,6 +110,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setMeals([]);
         setWorkouts([]);
         setLabAbnormals([]);
+        setIngredients([]);
         setHydrated(true);
         setCloudLoading(false);
         setSyncError(null);
@@ -120,13 +127,15 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         setSyncError(null);
-        const { profile: p, meals: m, workouts: w, labAbnormals: labs } = await fetchUserTracker(supabase, userId);
+        const { profile: p, meals: m, workouts: w, labAbnormals: labs, ingredients: ings } =
+          await fetchUserTracker(supabase, userId);
         if (cancelled) return;
         setRemoteDisabled(false);
         setProfileState(p);
         setMeals(m);
         setWorkouts(w);
         setLabAbnormals(labs);
+        setIngredients(ings);
       } catch {
         if (!cancelled) {
           setRemoteDisabled(true);
@@ -135,6 +144,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
             setMeals([]);
             setWorkouts([]);
             setLabAbnormals([]);
+            setIngredients([]);
           });
         }
       } finally {
@@ -223,8 +233,8 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
   );
 
   const exportSnapshot = useCallback(() => {
-    return JSON.stringify({ profile, meals, workouts, labAbnormals }, null, 2);
-  }, [profile, meals, workouts, labAbnormals]);
+    return JSON.stringify({ profile, meals, workouts, labAbnormals, ingredients }, null, 2);
+  }, [profile, meals, workouts, labAbnormals, ingredients]);
 
   const importSnapshot = useCallback(
     async (json: string) => {
@@ -237,6 +247,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
           meals: Array.isArray(o.meals) ? (o.meals as MealEntry[]) : [],
           workouts: Array.isArray(o.workouts) ? (o.workouts as WorkoutEntry[]) : [],
           labAbnormals: Array.isArray(o.labAbnormals) ? (o.labAbnormals as LabAbnormalEntry[]) : [],
+          ingredients: Array.isArray(o.ingredients) ? (o.ingredients as IngredientEntry[]) : [],
         };
         setSyncError(null);
         const next = await replaceRemoteWithSnapshot(supabase, userId, snap);
@@ -244,6 +255,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
         setMeals(next.meals);
         setWorkouts(next.workouts);
         setLabAbnormals(next.labAbnormals);
+        setIngredients(next.ingredients);
         return true;
       } catch {
         return false;
@@ -264,6 +276,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
     setMeals([]);
     setWorkouts([]);
     setLabAbnormals([]);
+    setIngredients([]);
   }, [supabase]);
 
   const addLabAbnormal = useCallback(
@@ -294,6 +307,34 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
     [cloud, supabase, userId, remoteDisabled],
   );
 
+  const addIngredient = useCallback(
+    async (r: Omit<IngredientEntry, "id">) => {
+      if (!(cloud && supabase && userId && !remoteDisabled)) return;
+      try {
+        setSyncError(null);
+        const inserted = await insertIngredientRemote(supabase, userId, r);
+        setIngredients((prev) => [...prev, inserted].sort((a, b) => a.name.localeCompare(b.name)));
+      } catch (e) {
+        setSyncError(e instanceof Error ? e.message : "Could not save ingredient.");
+      }
+    },
+    [cloud, supabase, userId, remoteDisabled],
+  );
+
+  const removeIngredient = useCallback(
+    async (id: string) => {
+      if (!(cloud && supabase && userId && !remoteDisabled)) return;
+      try {
+        setSyncError(null);
+        await deleteIngredientRemote(supabase, userId, id);
+        setIngredients((prev) => prev.filter((x) => x.id !== id));
+      } catch (e) {
+        setSyncError(e instanceof Error ? e.message : "Could not delete ingredient.");
+      }
+    },
+    [cloud, supabase, userId, remoteDisabled],
+  );
+
   const value = useMemo<TrackerContextValue>(
     () => ({
       hydrated,
@@ -305,6 +346,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       meals,
       workouts,
       labAbnormals,
+      ingredients,
       setProfile,
       addMeal,
       removeMeal,
@@ -312,6 +354,8 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       removeWorkout,
       addLabAbnormal,
       removeLabAbnormal,
+      addIngredient,
+      removeIngredient,
       importSnapshot,
       exportSnapshot,
       signOut,
@@ -328,6 +372,7 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       meals,
       workouts,
       labAbnormals,
+      ingredients,
       setProfile,
       addMeal,
       removeMeal,
@@ -335,6 +380,8 @@ export function TrackerProvider({ children }: { children: ReactNode }) {
       removeWorkout,
       addLabAbnormal,
       removeLabAbnormal,
+      addIngredient,
+      removeIngredient,
       importSnapshot,
       exportSnapshot,
       signOut,

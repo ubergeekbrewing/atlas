@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   ActivityLevel,
+  IngredientEntry,
   LabAbnormalEntry,
   LabResultFlag,
   MealEntry,
@@ -55,6 +56,18 @@ type LabAbnormalRow = {
   value: string;
   flag: string;
   notes: string;
+};
+
+type IngredientRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  calories: number;
+  protein_g: number;
+  carb_g: number;
+  fat_g: number;
+  where_to_find: string;
+  cost: string | number | null;
 };
 
 export function mapProfileRow(row: ProfileRow): Profile {
@@ -121,21 +134,48 @@ export function mapLabAbnormalRow(row: LabAbnormalRow): LabAbnormalEntry {
   };
 }
 
+function mapIngredientRow(row: IngredientRow): IngredientEntry {
+  const c = row.cost;
+  let cost: number | null = null;
+  if (c != null && c !== "") {
+    const n = typeof c === "number" ? c : Number(c);
+    cost = Number.isFinite(n) ? n : null;
+  }
+  return {
+    id: row.id,
+    name: row.name ?? "",
+    calories: row.calories ?? 0,
+    proteinG: row.protein_g ?? 0,
+    carbG: row.carb_g ?? 0,
+    fatG: row.fat_g ?? 0,
+    whereToFind: row.where_to_find ?? "",
+    cost,
+  };
+}
+
 export async function fetchUserTracker(
   supabase: SupabaseClient,
   userId: string,
-): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[]; labAbnormals: LabAbnormalEntry[] }> {
-  const [profileRes, mealsRes, workoutsRes, labsRes] = await Promise.all([
+): Promise<{
+  profile: Profile;
+  meals: MealEntry[];
+  workouts: WorkoutEntry[];
+  labAbnormals: LabAbnormalEntry[];
+  ingredients: IngredientEntry[];
+}> {
+  const [profileRes, mealsRes, workoutsRes, labsRes, ingRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("meals").select("*").eq("user_id", userId).order("entry_date", { ascending: false }),
     supabase.from("workouts").select("*").eq("user_id", userId).order("entry_date", { ascending: false }),
     supabase.from("lab_abnormals").select("*").eq("user_id", userId).order("draw_date", { ascending: false }),
+    supabase.from("ingredients").select("*").eq("user_id", userId).order("name", { ascending: true }),
   ]);
 
   if (profileRes.error) throw profileRes.error;
   if (mealsRes.error) throw mealsRes.error;
   if (workoutsRes.error) throw workoutsRes.error;
   if (labsRes.error) throw labsRes.error;
+  if (ingRes.error) throw ingRes.error;
 
   const profile = profileRes.data
     ? mapProfileRow(profileRes.data as ProfileRow)
@@ -144,8 +184,9 @@ export async function fetchUserTracker(
   const meals = (mealsRes.data as MealRow[] | null)?.map(mapMealRow) ?? [];
   const workouts = (workoutsRes.data as WorkoutRow[] | null)?.map(mapWorkoutRow) ?? [];
   const labAbnormals = (labsRes.data as LabAbnormalRow[] | null)?.map(mapLabAbnormalRow) ?? [];
+  const ingredients = (ingRes.data as IngredientRow[] | null)?.map(mapIngredientRow) ?? [];
 
-  return { profile, meals, workouts, labAbnormals };
+  return { profile, meals, workouts, labAbnormals, ingredients };
 }
 
 export async function upsertProfileRemote(
@@ -240,6 +281,36 @@ export async function deleteLabAbnormalRemote(
   if (error) throw error;
 }
 
+export async function insertIngredientRemote(
+  supabase: SupabaseClient,
+  userId: string,
+  row: Omit<IngredientEntry, "id"> & { id?: string },
+): Promise<IngredientEntry> {
+  const insert: Record<string, unknown> = {
+    user_id: userId,
+    name: row.name.trim(),
+    calories: row.calories,
+    protein_g: row.proteinG,
+    carb_g: row.carbG,
+    fat_g: row.fatG,
+    where_to_find: row.whereToFind.trim(),
+    cost: row.cost,
+  };
+  if (row.id && isUuid(row.id)) insert.id = row.id;
+  const { data, error } = await supabase.from("ingredients").insert(insert).select("*").single();
+  if (error) throw error;
+  return mapIngredientRow(data as IngredientRow);
+}
+
+export async function deleteIngredientRemote(
+  supabase: SupabaseClient,
+  userId: string,
+  ingredientId: string,
+): Promise<void> {
+  const { error } = await supabase.from("ingredients").delete().eq("id", ingredientId).eq("user_id", userId);
+  if (error) throw error;
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -251,13 +322,21 @@ export async function replaceRemoteWithSnapshot(
   supabase: SupabaseClient,
   userId: string,
   snap: TrackerSnapshot,
-): Promise<{ profile: Profile; meals: MealEntry[]; workouts: WorkoutEntry[]; labAbnormals: LabAbnormalEntry[] }> {
+): Promise<{
+  profile: Profile;
+  meals: MealEntry[];
+  workouts: WorkoutEntry[];
+  labAbnormals: LabAbnormalEntry[];
+  ingredients: IngredientEntry[];
+}> {
   const { error: delM } = await supabase.from("meals").delete().eq("user_id", userId);
   if (delM) throw delM;
   const { error: delW } = await supabase.from("workouts").delete().eq("user_id", userId);
   if (delW) throw delW;
   const { error: delL } = await supabase.from("lab_abnormals").delete().eq("user_id", userId);
   if (delL) throw delL;
+  const { error: delI } = await supabase.from("ingredients").delete().eq("user_id", userId);
+  if (delI) throw delI;
 
   await upsertProfileRemote(supabase, userId, snap.profile);
 
@@ -312,6 +391,26 @@ export async function replaceRemoteWithSnapshot(
       return row;
     });
     const { error } = await supabase.from("lab_abnormals").insert(labRows);
+    if (error) throw error;
+  }
+
+  const ingR = snap.ingredients ?? [];
+  if (ingR.length) {
+    const ingRows = ingR.map((r) => {
+      const row: Record<string, unknown> = {
+        user_id: userId,
+        name: r.name,
+        calories: r.calories,
+        protein_g: r.proteinG,
+        carb_g: r.carbG,
+        fat_g: r.fatG,
+        where_to_find: r.whereToFind,
+        cost: r.cost,
+      };
+      if (isUuid(r.id)) row.id = r.id;
+      return row;
+    });
+    const { error } = await supabase.from("ingredients").insert(ingRows);
     if (error) throw error;
   }
 

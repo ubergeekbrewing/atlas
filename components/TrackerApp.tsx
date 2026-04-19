@@ -6,6 +6,7 @@ import { todayLocal, weekdayLabel, weekRangeFromLocalDate } from "@/lib/date";
 import { labPanelTemplateRows } from "@/lib/lab-template";
 import type {
   ActivityLevel,
+  IngredientEntry,
   LabAbnormalEntry,
   LabResultFlag,
   MealEntry,
@@ -14,7 +15,7 @@ import type {
   WorkoutIntensity,
 } from "@/lib/types";
 
-type Tab = "dashboard" | "meals" | "workouts" | "labs" | "profile";
+type Tab = "dashboard" | "meals" | "ingredients" | "workouts" | "labs" | "profile";
 
 const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 const intensities: WorkoutIntensity[] = ["light", "moderate", "hard"];
@@ -29,6 +30,7 @@ const activityLevels: ActivityLevel[] = [
 const TABS: { id: Tab; label: string; mobileLabel: string }[] = [
   { id: "dashboard", label: "Today", mobileLabel: "Today" },
   { id: "meals", label: "Meals", mobileLabel: "Meals" },
+  { id: "ingredients", label: "Ingredients", mobileLabel: "Pantry" },
   { id: "workouts", label: "Workouts", mobileLabel: "Train" },
   { id: "labs", label: "Labs", mobileLabel: "Labs" },
   { id: "profile", label: "You", mobileLabel: "You" },
@@ -64,6 +66,13 @@ function TabGlyph({ tab, active }: { tab: Tab; active: boolean }) {
         <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
           <path d="M6 11h12v8a2 2 0 01-2 2H8a2 2 0 01-2-2v-8z" />
           <path d="M9 11V9a3 3 0 016 0v2" strokeLinecap="round" />
+        </svg>
+      );
+    case "ingredients":
+      return (
+        <svg className={`${stroke} ${c}`} viewBox="0 0 24 24" aria-hidden>
+          <path d="M6 9h12v10a2 2 0 01-2 2H8a2 2 0 01-2-2V9z" strokeLinejoin="round" />
+          <path d="M9 9V7a3 3 0 016 0v2M8 13h8" strokeLinecap="round" />
         </svg>
       );
     case "workouts":
@@ -324,6 +333,7 @@ export default function TrackerApp() {
         )}
 
         {tab === "meals" && <MealsPanel defaultDate={selectedDate} />}
+        {tab === "ingredients" && <IngredientsPanel />}
         {tab === "workouts" && <WorkoutsPanel defaultDate={selectedDate} />}
         {tab === "labs" && <LabsPanel />}
         {tab === "profile" && (
@@ -389,6 +399,179 @@ function labFlagBadgeClass(flag: LabResultFlag): string {
   if (flag === "L") return "bg-sky-100 text-sky-900 dark:bg-sky-950/70 dark:text-sky-200";
   if (flag === "P") return "bg-amber-100 text-amber-950 dark:bg-amber-950/60 dark:text-amber-200";
   return "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
+}
+
+function formatIngredientCost(cost: number | null): string {
+  if (cost == null || Number.isNaN(cost)) return "—";
+  return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" }).format(cost);
+}
+
+function IngredientsPanel() {
+  const t = useTracker();
+  const [name, setName] = useState("");
+  const [calories, setCalories] = useState(0);
+  const [proteinG, setProteinG] = useState(0);
+  const [carbG, setCarbG] = useState(0);
+  const [fatG, setFatG] = useState(0);
+  const [whereToFind, setWhereToFind] = useState("");
+  const [costStr, setCostStr] = useState("");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    const raw = costStr.trim();
+    const cost = raw === "" ? null : Number.parseFloat(raw);
+    await t.addIngredient({
+      name: name.trim(),
+      calories: clampNum(calories, 0, 20000),
+      proteinG: clampNum(proteinG, 0, 500),
+      carbG: clampNum(carbG, 0, 1000),
+      fatG: clampNum(fatG, 0, 500),
+      whereToFind: whereToFind.trim(),
+      cost: cost != null && Number.isFinite(cost) ? Math.round(cost * 100) / 100 : null,
+    });
+    setName("");
+    setCalories(0);
+    setProteinG(0);
+    setCarbG(0);
+    setFatG(0);
+    setWhereToFind("");
+    setCostStr("");
+  }
+
+  return (
+    <div className="space-y-5 md:space-y-6">
+      <p className="text-base leading-relaxed text-zinc-600 dark:text-zinc-400 sm:text-sm">
+        Build your <strong className="text-zinc-800 dark:text-zinc-200">pantry</strong>: macros for your usual portion,
+        where you buy or keep it, and what you typically pay (optional).
+      </p>
+
+      <form
+        onSubmit={(e) => void submit(e)}
+        className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5"
+      >
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Add ingredient</h2>
+        <label className="block">
+          <span className={fieldLbl}>Name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Greek yogurt 2%"
+            className={inp}
+            autoComplete="off"
+          />
+        </label>
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+          <label className="block">
+            <span className={fieldLbl}>Calories (kcal)</span>
+            <input
+              type="number"
+              min={0}
+              value={calories}
+              onChange={(e) => setCalories(Number(e.target.value))}
+              className={`${inp} tabular-nums`}
+            />
+          </label>
+          <label className="block">
+            <span className={fieldLbl}>Cost (USD, optional)</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={costStr}
+              onChange={(e) => setCostStr(e.target.value)}
+              placeholder="e.g. 4.99"
+              className={`${inp} tabular-nums`}
+            />
+          </label>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3 sm:gap-3">
+          <label className="block">
+            <span className={fieldLbl}>Protein (g)</span>
+            <input
+              type="number"
+              min={0}
+              value={proteinG}
+              onChange={(e) => setProteinG(Number(e.target.value))}
+              className={`${inp} tabular-nums`}
+            />
+          </label>
+          <label className="block">
+            <span className={fieldLbl}>Carbs (g)</span>
+            <input
+              type="number"
+              min={0}
+              value={carbG}
+              onChange={(e) => setCarbG(Number(e.target.value))}
+              className={`${inp} tabular-nums`}
+            />
+          </label>
+          <label className="block">
+            <span className={fieldLbl}>Fat (g)</span>
+            <input
+              type="number"
+              min={0}
+              value={fatG}
+              onChange={(e) => setFatG(Number(e.target.value))}
+              className={`${inp} tabular-nums`}
+            />
+          </label>
+        </div>
+        <label className="block">
+          <span className={fieldLbl}>Where to find it</span>
+          <input
+            value={whereToFind}
+            onChange={(e) => setWhereToFind(e.target.value)}
+            placeholder="e.g. Costco dairy wall · Kroger aisle 4"
+            className={inp}
+            autoComplete="off"
+          />
+        </label>
+        <button type="submit" className={primaryBtn}>
+          Save ingredient
+        </button>
+      </form>
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/40 sm:p-5">
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 sm:text-sm">Your ingredients</h2>
+        {t.ingredients.length === 0 ? (
+          <p className="mt-3 text-base text-zinc-500 sm:text-sm">No ingredients yet.</p>
+        ) : (
+          <ul className="mt-3 space-y-3">
+            {t.ingredients.map((row: IngredientEntry) => (
+              <li
+                key={row.id}
+                className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-3 dark:border-zinc-800 dark:bg-zinc-950/60 sm:py-2.5"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-medium text-zinc-900 dark:text-zinc-100 sm:text-sm">{row.name}</p>
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                      {Math.round(row.calories)} kcal · P {Math.round(row.proteinG)}g · C {Math.round(row.carbG)}g · F{" "}
+                      {Math.round(row.fatG)}g
+                    </p>
+                    {row.whereToFind ? (
+                      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-500">{row.whereToFind}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-medium text-teal-700 dark:text-teal-400">
+                      {formatIngredientCost(row.cost)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void t.removeIngredient(row.id)}
+                    className="shrink-0 self-start text-sm font-medium text-red-600 dark:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function LabsPanel() {

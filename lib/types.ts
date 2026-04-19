@@ -49,11 +49,25 @@ export type LabAbnormalEntry = {
   notes: string;
 };
 
+/** Base pantry item for meal planning: macros per your usual portion, sourcing, optional price */
+export type IngredientEntry = {
+  id: string;
+  name: string;
+  calories: number;
+  proteinG: number;
+  carbG: number;
+  fatG: number;
+  whereToFind: string;
+  /** Price in your usual currency (stored as a number); null if unknown */
+  cost: number | null;
+};
+
 export type TrackerSnapshot = {
   profile: Profile;
   meals: MealEntry[];
   workouts: WorkoutEntry[];
   labAbnormals: LabAbnormalEntry[];
+  ingredients: IngredientEntry[];
 };
 
 export const defaultProfile: Profile = {
